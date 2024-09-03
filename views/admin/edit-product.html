@@ -1,0 +1,15 @@
+{{define "main"}}
+<form method="POST">
+
+	<input type="hidden" value="{{.ID}}" name="id" />
+
+	<input type="text" placeholder="Name" name="name" value="{{.Name}}" />
+
+	<input type="text" placeholder="Slug" name="slug" value="{{.Slug}}" />
+
+	<input type="numeric" placeholder="Price" name="price" value="{{.Price}}" />
+
+	<button>Save</button>
+
+</form>
+{{end}}

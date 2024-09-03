@@ -1,0 +1,54 @@
+/* Core.css */
+
+* {
+	margin: 0;
+	padding: 0;
+	font-family: system-ui;
+}
+
+.container {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	max-width: 1200px;
+	width: 100%;
+	margin: 0 auto;
+	border-width: 0 2px 0 2px;
+	border-color: #000;
+	border-style: solid;
+}
+
+/* HEADER */
+.container > header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20px;
+}
+
+.container > header > nav {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.container > header > nav a {
+	font-size: 18px;
+	text-decoration: none;
+	color: #000;
+}
+
+.header-logo {
+	text-decoration: none;
+	font-weight: 600;
+	font-size: 24px;
+	color: #000;
+}
+/* HEADER */
+
+/* MAIN */
+.container > main {
+	padding: 20px;
+	flex-grow: grow;
+}
+/* MAIN */

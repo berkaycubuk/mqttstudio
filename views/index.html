@@ -1,0 +1,12 @@
+{{define "main"}}
+<div>
+	{{range .}}
+	<article>
+		<div>{{.Name}}</div>
+		<div>{{.Price}}</div>
+
+		<a href="/product/{{.Slug}}">View product</a>
+	</article>
+	{{end}}
+</div>
+{{end}}

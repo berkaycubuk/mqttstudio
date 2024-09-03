@@ -1,0 +1,28 @@
+<a href="/admin/new-product">New product</a>
+
+<table>
+	<thead>
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th>Price</th>
+			<th></th>
+		</tr>
+	</thead>
+	<tbody>
+		{{range .}}
+		<tr>
+			<td>{{.ID}}</td>
+			<td>{{.Name}}</td>
+			<td>{{.Price}}</td>
+			<td>
+				<a href="/admin/products/{{.ID}}">EDIT</a>   
+				<form method="POST" action="/admin/delete-product">
+					<input type="hidden" name="id" value="{{.ID}}" />
+					<button>DELETE</button>
+				</form>
+			</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
