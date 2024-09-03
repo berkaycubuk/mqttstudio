@@ -1,8 +1,6 @@
-# Basic E-Com
+# MQTT Studio
 
 !!!IN DEVELOPMENT!!!
-
-This is a minimal e-commerce project written in Go. Main goal is to be small, and simple.
 
 ## Tech
 
@@ -11,13 +9,6 @@ This is a minimal e-commerce project written in Go. Main goal is to be small, an
 - HTML
 - CSS
 - JavaScript
-
-## Features
-
-- Product listing
-- Product details
-- Cart system
-- Admin controls like adding a new product
 
 ## Development
 
