@@ -1,6 +1,94 @@
 {{define "main"}}
-<h1>{{.Name}}</h1>
+<h1>{{.Project.Name}}</h1>
 
-<div>{{.ID}}</div>
-<div>{{.Slug}}</div>
+<form method="POST" action="/projects/{{.Project.Slug}}/connect">
+	<button>Connect</button>
+</form>
+
+<form method="POST" action="/projects/{{.Project.Slug}}/disconnect">
+	<button>Disconnect</button>
+</form>
+
+<!-- SECTIONS -->
+<div class="project-sections">
+
+	{{$slug := .Project.Slug}}
+	{{range .Sections}}
+	<!-- SECTION -->
+	<div class="project-section">
+		<h2 class="project-section-title">{{.Name}}</h2>
+
+		<!-- WIDGETS -->
+		<div class="project-widgets">
+
+			{{range .Widgets}}
+			<!-- WIDGET -->
+			<div class="project-widget">
+				<div>{{.Widget}}</div>
+			</div>
+			<!-- WIDGET -->
+			{{end}}
+
+			<!-- NEW WIDGET -->
+			<div class="new-widget">
+				<div class="project-widget">
+					<div>Add new widget</div>
+				</div>
+
+				<!-- NEW WIDGET DIALOG -->
+				<dialog>
+					<button class="close-new-widget-dialog">Close</button>
+					<form method="POST" action="/projects/{{$slug}}/new-widget">
+						<div>New widget</div>
+						<input type="hidden" name="id" value="{{.ID}}" />
+						<select name="widget">
+							<option value="TEXT">TEXT</option>
+							<option value="NUMBER">NUMBER</option>
+						</select>
+						<button>Add</button>
+					</form>
+				</dialog>
+				<!-- NEW WIDGET DIALOG -->
+			</div>
+			<!-- NEW WIDGET -->
+
+		</div>
+		<!-- WIDGETS -->
+	</div>
+	<!-- SECTION -->
+	{{end}}
+
+	<!-- NEW SECTION FORM -->
+	<form method="POST" action="/projects/{{$slug}}/new-section">
+		<div>New section</div>
+		<input type="hidden" name="id" value="{{.Project.ID}}" />
+		<input type="text" name="name" placeholder="Name" />
+		<button>Add</button>
+	</form>
+	<!-- NEW SECTION FORM -->
+
+</div>
+<!-- SECTIONS -->
+{{end}}
+
+{{define "scripts"}}
+<script>
+	let newWidgetButtons = document.querySelectorAll(".new-widget");
+
+	for (let i = 0; i < newWidgetButtons.length; i++) {
+		let dialog = newWidgetButtons[i].querySelector("dialog");
+		if (dialog == undefined) {
+			continue;
+		}
+
+		let closeButton = dialog.querySelector(".close-new-widget-dialog");
+		closeButton.addEventListener('click', () => {
+			dialog.close();
+		})
+
+		newWidgetButtons[i].querySelector(".project-widget").addEventListener('click', () => {
+			dialog.showModal();
+		})
+	}
+</script>
 {{end}}

@@ -19,28 +19,28 @@ func homeHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		rows, err := db.Query("SELECT * FROM products")
+		rows, err := db.Query("SELECT * FROM projects")
 		if err != nil {
 			fmt.Fprintf(w, err.Error())
 		}
 
-		var products []Product
+		var projects []Project
 
 		for rows.Next() {
-			var product Product
-			err = rows.Scan(&product.ID, &product.Name, &product.Slug, &product.Price)
+			var project Project
+			err = rows.Scan(&project.ID, &project.Name, &project.Slug)
 			if err != nil {
 				fmt.Fprintf(w, err.Error())
 				continue
 			}
 
-			products = append(products, product)
+			projects = append(projects, project)
 		}
 
 		rows.Close()
 
 		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/index.html"))
-		tmpl.Execute(w, products)
+		tmpl.Execute(w, projects)
 	}
 }
 
@@ -69,16 +69,33 @@ func main() {
 		createLogsTable(db)
 	}
 
+	var connections []*Connection
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/product/{slug}", productHandler(db))
+	// Auth routes
+	mux.HandleFunc("/login", loginHandler(db))
+	mux.HandleFunc("/signup", signupHandler(db))
+
 	mux.HandleFunc("/add-to-cart", addToCartHandler(db))
 	mux.HandleFunc("/cart", cartHandler(db))
+	mux.HandleFunc("/projects/{slug}", projectViewHandler(db))
+	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db))
+	mux.HandleFunc("/projects/{slug}/new-widget", projectNewWidgetHandler(db))
+	mux.HandleFunc("/projects/{slug}/connect", projectConnectHandler(db, &connections))
+	mux.HandleFunc("/projects/{slug}/disconnect", projectDisconnectHandler(db, &connections))
+	mux.HandleFunc("/projects/{slug}/connection", projectConnectionHandler(db, &connections))
+
+	// Admin routes
+	mux.HandleFunc("/admin/projects", adminProjectsHandler(db))
+	mux.HandleFunc("/admin/projects/new", adminNewProjectHandler(db))
+
 	mux.HandleFunc("/admin/products", adminProductsHandler(db))
 	mux.HandleFunc("/admin/products/{id}", adminEditProductHandler(db))
 	mux.HandleFunc("/admin/delete-product", adminDeleteProductHandler(db))
 	mux.HandleFunc("/admin/new-product", adminNewProductHandler(db))
-	mux.HandleFunc("/projects/{slug}", projectViewHandler(db))
+
+	// General routes ?
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))
 	mux.HandleFunc("/", homeHandler(db))
 

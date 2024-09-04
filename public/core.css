@@ -6,6 +6,10 @@
 	font-family: system-ui;
 }
 
+body {
+	padding: 10px;
+}
+
 .container {
 	display: flex;
 	flex-direction: column;
@@ -52,3 +56,34 @@
 	flex-grow: grow;
 }
 /* MAIN */
+
+/* PROJECT SECTIONS */
+.project-sections {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.project-section {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.project-section-title {
+	font-size: 24px;
+	font-weight: 600;
+	color: #000;
+}
+
+.project-widgets {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+}
+
+.project-widget {
+	padding: 6px;
+	border: 1px solid #ccc;
+}
+/* PROJECT SECTIONS */
