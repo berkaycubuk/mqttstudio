@@ -85,6 +85,7 @@ func main() {
 	mux.HandleFunc("/projects/{slug}/connect", projectConnectHandler(db, &connections))
 	mux.HandleFunc("/projects/{slug}/disconnect", projectDisconnectHandler(db, &connections))
 	mux.HandleFunc("/projects/{slug}/connection", projectConnectionHandler(db, &connections))
+	mux.HandleFunc("/projects/{slug}/data", projectDataHandler(db, &connections))
 
 	// Admin routes
 	mux.HandleFunc("/admin/projects", adminProjectsHandler(db))

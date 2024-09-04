@@ -1,6 +1,8 @@
 {{define "main"}}
 <h1>{{.Project.Name}}</h1>
 
+<div id="project-connection-status"></div>
+
 <form method="POST" action="/projects/{{.Project.Slug}}/connect">
 	<button>Connect</button>
 </form>
@@ -23,7 +25,7 @@
 
 			{{range .Widgets}}
 			<!-- WIDGET -->
-			<div class="project-widget">
+			<div class="project-widget" data-widget-id="{{.ID}}">
 				<div>{{.Widget}}</div>
 			</div>
 			<!-- WIDGET -->
@@ -45,6 +47,7 @@
 							<option value="TEXT">TEXT</option>
 							<option value="NUMBER">NUMBER</option>
 						</select>
+						<input type="text" name="topic" placeholder="Topic" />
 						<button>Add</button>
 					</form>
 				</dialog>
@@ -90,5 +93,25 @@
 			dialog.showModal();
 		})
 	}
+
+	function fetchStatus() {
+		let connectionStatus = document.getElementById("project-connection-status");
+
+		fetch('/projects/{{.Project.Slug}}/connection').then(res => res.text()).then(data => {
+			connectionStatus.innerHTML = data;
+			setTimeout(fetchStatus, 5000)
+		})
+	}
+
+	function fetchData() {
+		fetch('/projects/{{.Project.Slug}}/data').then(res => res.json()).then(data => {
+			console.log(data)
+			setTimeout(fetchData, 5000)
+		})
+	}
+
+	fetchStatus()
+	fetchData()
+
 </script>
 {{end}}

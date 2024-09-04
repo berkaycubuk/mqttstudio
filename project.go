@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -35,6 +36,15 @@ type ProjectWidget struct {
 type ProjectViewData struct {
 	Project		Project
 	Sections	[]ProjectSection
+}
+
+type TextWidgetConfig struct {
+	Topic string
+}
+
+type WidgetData struct {
+	ID int
+	Data any
 }
 
 func createProjectsTable(db *sql.DB) {
@@ -268,16 +278,25 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 
 		// TODO: validate fields
 		id := r.FormValue("id")
+		topic := r.FormValue("topic")
 		slug := r.PathValue("slug")
 		widget := r.FormValue("widget")
 
-		stmt, err := db.Prepare("INSERT INTO project_widgets(project_section_id, widget) VALUES(?,?)")
+		stmt, err := db.Prepare("INSERT INTO project_widgets(project_section_id, widget, config) VALUES(?,?,?)")
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 
-		res, err := stmt.Exec(id, widget)
+		var config any
+
+		if widget == "TEXT" {
+			config, err = json.Marshal(TextWidgetConfig{
+				Topic: topic,
+			})
+		}
+
+		res, err := stmt.Exec(id, widget, config)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -325,13 +344,78 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 			*connections = append(*connections, connection)
 		}
 
-		go func() {
-			err = connection.Connect()
+		if connection.Status == 0 {
+			// get widgets
+			rows, err := db.Query("SELECT id, name FROM project_sections WHERE project_id = ?", project.ID)
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
-		}()
+
+			var topics []string
+
+			var projectSections []ProjectSection
+			for rows.Next() {
+				var projectSection ProjectSection
+
+				err = rows.Scan(&projectSection.ID, &projectSection.Name)
+				if err != nil {
+					fmt.Fprintf(w, err.Error())
+					continue
+				}
+
+				// Query the widgets that are related to this section
+				widgetRows, err := db.Query("SELECT id, widget, config FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+
+				var projectWidgets []ProjectWidget
+				for widgetRows.Next() {
+					var projectWidget ProjectWidget
+
+					err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
+					if err != nil {
+						fmt.Fprintf(w, err.Error())
+						continue
+					}
+
+					if projectWidget.Widget == "TEXT" {
+						var textWidgetConfig TextWidgetConfig
+						err = json.Unmarshal(projectWidget.Config, &textWidgetConfig)
+						if err != nil {
+							log.Fatal(err)
+							return
+						}
+
+						topics = append(topics, textWidgetConfig.Topic)
+					}
+
+					projectWidgets = append(projectWidgets, projectWidget)
+				}
+
+				widgetRows.Close()
+
+				projectSection.Widgets = projectWidgets
+
+				projectSections = append(projectSections, projectSection)
+			}
+
+			rows.Close()
+
+			go func() {
+				err = connection.Connect()
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+
+				for i := 0; i < len(topics); i++ {
+					connection.Subscribe(topics[i])
+				}
+			}()
+		}
 
 		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
 	}
@@ -401,5 +485,48 @@ func projectConnectionHandler(db *sql.DB, connections *[]*Connection) http.Handl
 		}
 
 		fmt.Fprintf(w, "offline")
+	}
+}
+
+func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slugParameter := r.PathValue("slug")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// find connection
+		var connection *Connection
+		connectionFound := false
+		for i := 0; i < len(*connections); i++ {
+			if (*connections)[i].ProjectID == project.ID {
+				connectionFound = true
+				connection = (*connections)[i]
+				break
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if !connectionFound {
+			resp, err := json.Marshal(nil)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+			w.Write(resp)
+			return
+		}
+
+		resp, err := json.Marshal(connection.DataBuffer)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		w.Write(resp)
 	}
 }
