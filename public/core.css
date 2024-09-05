@@ -99,6 +99,22 @@
 	align-items: center;
 	gap: 6px;
 }
+
+.dashboard-mode-selector {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dashboard-mode-selector-option {
+	font-size: 14px;
+}
+
+.dashboard-mode-selector-option-display {
+}
+
+.dashboard-mode-selector-option-edit {
+}
 /* DASHBOARD-HEADER */
 
 /* DASHBOARD-MAIN */
@@ -144,7 +160,8 @@
 /* PROJECT SECTIONS */
 
 /* NEW-WIDGET-DIALOG */
-.new-widget-dialog {
+.new-widget-dialog,
+.edit-widget-dialog {
 	position: fixed;
 	left: 50%;
 	top: 50%;
@@ -157,6 +174,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: 10px;
 	padding-bottom: 10px;
 }
 
@@ -165,13 +183,15 @@
 	font-weight: 600;
 }
 
-.new-widget-dialog form {
+.new-widget-dialog form,
+.edit-widget-dialog form {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 6px;
 }
 
-.new-widget-dialog form button {
+.new-widget-dialog form button,
+.edit-widget-dialog form button {
 	grid-column: 1 / 2;
 }
 /* NEW-WIDGET-DIALOG */

@@ -44,6 +44,12 @@ type TextWidgetConfig struct {
 	Topic string
 }
 
+type IndicatorWidgetConfig struct {
+	Topic string
+	OnCondition string
+	Color string
+}
+
 type ButtonWidgetConfig struct {
 	Topic string
 	Message string
@@ -147,13 +153,23 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 					continue
 				}
 
-				/*
 				// parse config
+				var config any
 				if projectWidget.Config != nil && len(projectWidget.Config) > 0 {
-					if projectWidget.Widget == "TEXT" {
+					err = json.Unmarshal(projectWidget.Config, &config)
+					if err != nil {
+						log.Fatal(err)
+						return
 					}
+					/*
+					if projectWidget.Widget == "TEXT" {
+					} else if projectWidget.Widget == "BUTTON" {
+					} else if projectWidget.Widget == "INDICATOR" {
+					}
+					*/
 				}
-				*/
+
+				projectWidget.ConfigParsed = config
 
 				projectWidgets = append(projectWidgets, projectWidget)
 			}
@@ -344,6 +360,23 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 				Topic: topic,
 				Message: message,
 			})
+		} else if widget == "INDICATOR" {
+			onCondition := r.FormValue("on-condition")
+			if topic == "" {
+				http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+				return
+			}
+
+			if onCondition == "" {
+				http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+				return
+			}
+
+			config, err = json.Marshal(IndicatorWidgetConfig{
+				Topic: topic,
+				OnCondition: onCondition,
+				Color: "blue",
+			})
 		}
 
 		res, err := stmt.Exec(id, widget, config)
@@ -441,6 +474,15 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 						}
 
 						topics = append(topics, textWidgetConfig.Topic)
+					} else if projectWidget.Widget == "INDICATOR" {
+						var indicatorWidgetConfig IndicatorWidgetConfig
+						err = json.Unmarshal(projectWidget.Config, &indicatorWidgetConfig)
+						if err != nil {
+							log.Fatal(err)
+							return
+						}
+
+						topics = append(topics, indicatorWidgetConfig.Topic)
 					}
 
 					projectWidgets = append(projectWidgets, projectWidget)
@@ -642,6 +684,37 @@ func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc
 					})
 
 					continue
+				} else if projectWidget.Widget == "INDICATOR" {
+					var indicatorWidgetConfig IndicatorWidgetConfig
+					err = json.Unmarshal(projectWidget.Config, &indicatorWidgetConfig)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+
+					topic = indicatorWidgetConfig.Topic
+					if topic == "" {
+						data = append(data, WidgetData{
+							ID: projectWidget.ID,
+							Data: nil,
+						})
+						continue
+					}
+
+					if connection.DataBuffer[topic] == nil || len(connection.DataBuffer[topic]) <= 0 {
+						data = append(data, WidgetData{
+							ID: projectWidget.ID,
+							Data: nil,
+						})
+						continue
+					}
+
+					data = append(data, WidgetData{
+						ID: projectWidget.ID,
+						Data: string(connection.DataBuffer[topic][len(connection.DataBuffer[topic]) - 1]),
+					})
+
+					continue
 				}
 
 				if topic == "" {
@@ -736,6 +809,116 @@ func projectSubmitValueHandler(db *sql.DB, connections *[]*Connection) http.Hand
 			}
 
 			connection.SendMessage(config.Topic, string(config.Message))
+		}
+
+		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
+	}
+}
+
+func projectDeleteWidgetHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		slugParameter := r.PathValue("slug")
+		id := r.FormValue("id")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		stmt, err := db.Prepare("DELETE FROM project_widgets WHERE id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(id)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
+	}
+}
+
+func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		slugParameter := r.PathValue("slug")
+		id := r.FormValue("id")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		var projectWidget ProjectWidget
+		err = db.QueryRow("SELECT id, widget, config FROM project_widgets WHERE id = ?", id).Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		var config any
+		if projectWidget.Widget == "TEXT" {
+			topic := r.FormValue("topic")
+
+			config, err = json.Marshal(TextWidgetConfig{
+				Topic: topic,
+			})
+		} else if projectWidget.Widget == "BUTTON" {
+			topic := r.FormValue("topic")
+			message := r.FormValue("message")
+
+			config, err = json.Marshal(ButtonWidgetConfig{
+				Topic: topic,
+				Message: message,
+			})
+		} else if projectWidget.Widget == "INDICATOR" {
+			topic := r.FormValue("topic")
+			onCondition := r.FormValue("on-condition")
+			color := r.FormValue("color")
+
+			config, err = json.Marshal(IndicatorWidgetConfig{
+				Topic: topic,
+				OnCondition: onCondition,
+				Color: color,
+			})
+		}
+
+		stmt, err := db.Prepare("UPDATE project_widgets set config = ? where id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(config, projectWidget.ID)
+		if err != nil {
+			log.Fatal(err)
+			return
 		}
 
 		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)

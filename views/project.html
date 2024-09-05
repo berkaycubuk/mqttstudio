@@ -3,16 +3,24 @@
 <header class="dashboard-header">
 	<div class="dashboard-header-title">{{.Project.Name}}</div>
 
+	<!-- EDIT-VIEW-MODE-SELECTOR -->
+	<div class="dashboard-mode-selector">
+		<div class="dashboard-mode-selector-option dashboard-mode-selector-option-display">Display mode</div>
+		<input id="dashboard-mode-selector" type="checkbox" />
+		<div class="dashboard-mode-selector-option dashboard-mode-selector-option-edit">Edit mode</div>
+	</div>
+	<!-- EDIT-VIEW-MODE-SELECTOR -->
+
 	<div class="dashboard-header-connection">
 		<div id="project-connection-status"></div>
 
 		<div class="dashboard-header-connection-actions">
 			<form method="POST" action="/projects/{{.Project.Slug}}/connect">
-				<button>Connect</button>
+				<button class="button button--secondary">Connect</button>
 			</form>
 
 			<form method="POST" action="/projects/{{.Project.Slug}}/disconnect">
-				<button>Disconnect</button>
+				<button class="button button--secondary">Disconnect</button>
 			</form>
 		</div>
 	</div>
@@ -35,8 +43,41 @@
 			{{range .Widgets}}
 			<!-- WIDGET -->
 			<div class="project-widget" data-widget-id="{{.ID}}">
+				<div data-widget-edit-mode style="display: none;">
+					<form method="POST" action="/projects/{{$slug}}/delete-widget">
+						<input type="hidden" name="id" value="{{.ID}}" />
+						<button>DELETE</button>
+					</form>
+
+					<button data-edit-widget-button data-edit-widget-id="{{.ID}}">EDIT</button>
+					<!-- NEW WIDGET DIALOG -->
+					<dialog class="edit-widget-dialog" data-edit-widget-dialog-id="{{.ID}}">
+						<header class="new-widget-dialog-header">
+							<div class="new-widget-dialog-header-title">Edit widget</div>
+							<button data-edit-widget-close-button class="button button--secondary">Close</button>
+						</header>
+						<form method="POST" action="/projects/{{$slug}}/edit-widget">
+							<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+							{{if eq .Widget "TEXT"}}
+							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							{{else if eq .Widget "BUTTON"}}
+							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							<input class="input" type="text" name="message" placeholder="Message" value="{{.ConfigParsed.Message}}" />
+							{{else if eq .Widget "INDICATOR"}}
+							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							<input class="input" type="text" name="on-condition" placeholder="ON condition" value="{{.ConfigParsed.OnCondition}}" />
+							<input class="input" type="color" name="color" value="{{.ConfigParsed.Color}}" />
+							{{end}}
+							<button class="button button--primary">Save</button>
+						</form>
+					</dialog>
+					<!-- NEW WIDGET DIALOG -->
+				</div>
+
 				<div>{{.Widget}}</div>
 				{{if eq .Widget "TEXT"}}
+				<div data-widget-value>-- NO DATA --</div>
+				{{else if eq .Widget "INDICATOR"}}
 				<div data-widget-value>-- NO DATA --</div>
 				{{else if eq .Widget "BUTTON"}}
 				<form method="POST" action="/projects/{{$slug}}/submit-value">
@@ -55,21 +96,42 @@
 				</div>
 
 				<!-- NEW WIDGET DIALOG -->
-				<dialog class="new-widget-dialog">
+				<dialog class="new-widget-dialog" data-new-widget-section-id="{{.ID}}">
 					<header class="new-widget-dialog-header">
 						<div class="new-widget-dialog-header-title">New widget</div>
 						<button class="button button--secondary close-new-widget-dialog">Close</button>
 					</header>
-					<form method="POST" action="/projects/{{$slug}}/new-widget">
+
+					<div data-new-widget-selector class="new-widget-widgets">
+						<button onclick="selectNewWidget('text', '{{.ID}}')">Text</button>
+						<button onclick="selectNewWidget('button', '{{.ID}}')">Button</button>
+						<button onclick="selectNewWidget('indicator', '{{.ID}}')">Indicator</button>
+					</div>
+
+					<form data-new-widget-text method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
 						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
-						<select class="input" name="widget">
-							<option value="TEXT">TEXT</option>
-							<option value="BUTTON">BUTTON</option>
-						</select>
+						<input style="display: none;" type="hidden" name="widget" value="TEXT" />
+						<input class="input" type="text" name="topic" placeholder="Topic" />
+						<button class="button button--primary">Add</button>
+					</form>
+
+					<form data-new-widget-button method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
+						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+						<input style="display: none;" type="hidden" name="widget" value="BUTTON" />
 						<input class="input" type="text" name="topic" placeholder="Topic" />
 						<input class="input" type="text" name="message" placeholder="Message" />
 						<button class="button button--primary">Add</button>
 					</form>
+
+					<form data-new-widget-indicator method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
+						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+						<input style="display: none;" type="hidden" name="widget" value="INDICATOR" />
+						<input class="input" type="text" name="topic" placeholder="Topic" />
+						<input class="input" type="text" name="on-condition" placeholder="ON condition" />
+						<input class="input" type="color" name="color" />
+						<button class="button button--primary">Add</button>
+					</form>
+
 				</dialog>
 				<!-- NEW WIDGET DIALOG -->
 			</div>
@@ -98,6 +160,42 @@
 
 {{define "scripts"}}
 <script>
+	let dashboardMode = "DISPLAY";
+	let dashboardModeSelector = document.getElementById("dashboard-mode-selector");
+	dashboardModeSelector.addEventListener('click', () => {
+		if (dashboardMode == "DISPLAY") {
+			dashboardMode = "EDIT";
+
+			const els = document.querySelectorAll('[data-widget-edit-mode]');
+			for (let i = 0; i < els.length; i++) {
+				els[i].style.display = "block";
+			}
+		} else {
+			dashboardMode = "DISPLAY";
+
+			const els = document.querySelectorAll('[data-widget-edit-mode]');
+			for (let i = 0; i < els.length; i++) {
+				els[i].style.display = "none";
+			}
+		}
+	})
+
+	// Edit buttons
+	const editButtons = document.querySelectorAll('[data-edit-widget-button]');
+	for (let i = 0; i < editButtons.length; i++) {
+		const id = editButtons[i].dataset.editWidgetId;
+		console.log(id);
+		const editDialog = document.querySelector('[data-edit-widget-dialog-id="' + id + '"]');
+		const closeButton = editDialog.querySelector('[data-edit-widget-close-button]');
+		editButtons[i].addEventListener('click', (e) => {
+			editDialog.showModal();
+		});
+
+		closeButton.addEventListener('click', (e) => {
+			editDialog.close();
+		});
+	}
+
 	let newWidgetButtons = document.querySelectorAll(".new-widget");
 
 	for (let i = 0; i < newWidgetButtons.length; i++) {
@@ -109,11 +207,24 @@
 		let closeButton = dialog.querySelector(".close-new-widget-dialog");
 		closeButton.addEventListener('click', () => {
 			dialog.close();
+
+			const forms = dialog.querySelectorAll("form");
+			for (let j = 0; j < forms.length; j++) {
+				forms[j].style.display = "none";
+			}
+
+			dialog.querySelector('[data-new-widget-selector]').style.display = "block";
 		})
 
 		newWidgetButtons[i].querySelector(".project-widget").addEventListener('click', () => {
 			dialog.showModal();
 		})
+	}
+
+	function selectNewWidget(widget, sectionID) {
+		const dialog = document.querySelector('[data-new-widget-section-id="' + sectionID + '"]');
+		dialog.querySelector('[data-new-widget-' + widget + ']').style.display = "block";
+		dialog.querySelector('[data-new-widget-selector]').style.display = "none";
 	}
 
 	function fetchStatus() {
