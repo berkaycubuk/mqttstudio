@@ -4,11 +4,34 @@
 	margin: 0;
 	padding: 0;
 	font-family: system-ui;
+	box-sizing: border-box;
 }
 
-body {
-	padding: 10px;
+/* BUTTON */
+.button {
+	padding: 4px 6px;
+	font-weight: 500;
+	border: none;
+	cursor: pointer;
 }
+
+.button--primary {
+	background-color: orange;
+	color: white;
+}
+
+.button--secondary {
+	background-color: #ccc;
+	color: #000;
+}
+/* BUTTON */
+
+/* INPUT */
+.input {
+	padding: 4px 6px;
+	border: 1px solid #ccc;
+}
+/* INPUT */
 
 .container {
 	display: flex;
@@ -57,6 +80,33 @@ body {
 }
 /* MAIN */
 
+/* DASHBOARD-HEADER */
+.dashboard-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px;
+	border-bottom: 1px solid #eee;
+}
+
+.dashboard-header-title {
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.dashboard-header-connection-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+/* DASHBOARD-HEADER */
+
+/* DASHBOARD-MAIN */
+.dashboard-main {
+	padding: 8px;
+}
+/* DASHBOARD-MAIN */
+
 /* PROJECT SECTIONS */
 .project-sections {
 	display: flex;
@@ -86,4 +136,42 @@ body {
 	padding: 6px;
 	border: 1px solid #ccc;
 }
+
+.new-widget > .project-widget {
+	cursor: pointer;
+	height: fit-content;
+}
 /* PROJECT SECTIONS */
+
+/* NEW-WIDGET-DIALOG */
+.new-widget-dialog {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	padding: 10px;
+	border: 1px solid #ccc;
+}
+
+.new-widget-dialog-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-bottom: 10px;
+}
+
+.new-widget-dialog-header-title {
+	font-size: 18px;
+	font-weight: 600;
+}
+
+.new-widget-dialog form {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.new-widget-dialog form button {
+	grid-column: 1 / 2;
+}
+/* NEW-WIDGET-DIALOG */

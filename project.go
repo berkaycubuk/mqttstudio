@@ -13,6 +13,7 @@ type Project struct {
 	ID int
 	Name string
 	Slug string
+	BrokerClientID string
 	BrokerAddress string
 	BrokerPort int
 	BrokerProtocol string
@@ -31,6 +32,7 @@ type ProjectWidget struct {
 	ProjectSectionID int
 	Widget string
 	Config []byte
+	ConfigParsed any
 }
 
 type ProjectViewData struct {
@@ -40,6 +42,11 @@ type ProjectViewData struct {
 
 type TextWidgetConfig struct {
 	Topic string
+}
+
+type ButtonWidgetConfig struct {
+	Topic string
+	Message string
 }
 
 type WidgetData struct {
@@ -52,6 +59,7 @@ func createProjectsTable(db *sql.DB) {
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		slug TEXT NOT NULL,
+		broker_client_id TEXT NOT NULL,
 		broker_address TEXT NOT NULL,
 		broker_port INTEGER NOT NULL,
 		broker_protocol TEXT NOT NULL
@@ -123,7 +131,7 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 			}
 
 			// Query the widgets that are related to this section
-			widgetRows, err := db.Query("SELECT id, widget FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
+			widgetRows, err := db.Query("SELECT id, widget, config FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
 			if err != nil {
 				log.Fatal(err)
 				return
@@ -133,11 +141,19 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 			for widgetRows.Next() {
 				var projectWidget ProjectWidget
 
-				err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget)
+				err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
 				if err != nil {
 					fmt.Fprintf(w, err.Error())
 					continue
 				}
+
+				/*
+				// parse config
+				if projectWidget.Config != nil && len(projectWidget.Config) > 0 {
+					if projectWidget.Widget == "TEXT" {
+					}
+				}
+				*/
 
 				projectWidgets = append(projectWidgets, projectWidget)
 			}
@@ -199,14 +215,18 @@ func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
 
 			name := req.FormValue("name")
 			slug := req.FormValue("slug")
+			brokerClientID := req.FormValue("broker-client-id")
+			brokerAddress := req.FormValue("broker-address")
+			brokerPort := req.FormValue("broker-port")
+			brokerProtocol := req.FormValue("broker-protocol")
 
-			stmt, err := db.Prepare("INSERT INTO projects(name,slug,broker_address,broker_port,broker_protocol) VALUES(?,?,?,?,?)")
+			stmt, err := db.Prepare("INSERT INTO projects(name,slug,broker_client_id,broker_address,broker_port,broker_protocol) VALUES(?,?,?,?,?,?)")
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
 
-			res, err := stmt.Exec(name, slug, "broker.emqx.io", 1883, "tcp")
+			res, err := stmt.Exec(name, slug, brokerClientID, brokerAddress, brokerPort, brokerProtocol)
 			if err != nil {
 				log.Fatal(err)
 				return
@@ -282,6 +302,16 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 		slug := r.PathValue("slug")
 		widget := r.FormValue("widget")
 
+		if id == "" {
+			http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+			return
+		}
+
+		if widget == "" {
+			http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+			return
+		}
+
 		stmt, err := db.Prepare("INSERT INTO project_widgets(project_section_id, widget, config) VALUES(?,?,?)")
 		if err != nil {
 			log.Fatal(err)
@@ -291,8 +321,28 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 		var config any
 
 		if widget == "TEXT" {
+			if topic == "" {
+				http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+				return
+			}
+
 			config, err = json.Marshal(TextWidgetConfig{
 				Topic: topic,
+			})
+		} else if widget == "BUTTON" {
+			message := r.FormValue("message")
+			if topic == "" {
+				http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+				return
+			}
+			if message == "" {
+				http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+				return
+			}
+
+			config, err = json.Marshal(ButtonWidgetConfig{
+				Topic: topic,
+				Message: message,
 			})
 		}
 
@@ -340,6 +390,7 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 				ProjectID: project.ID,
 				Status: 0,
 				Broker: fmt.Sprintf("tcp://%s:%d", project.BrokerAddress, project.BrokerPort),
+				ClientID: project.BrokerClientID,
 			}
 			*connections = append(*connections, connection)
 		}
@@ -412,7 +463,7 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 				}
 
 				for i := 0; i < len(topics); i++ {
-					connection.Subscribe(topics[i])
+					go connection.Subscribe(topics[i])
 				}
 			}()
 		}
@@ -522,11 +573,171 @@ func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc
 			return
 		}
 
-		resp, err := json.Marshal(connection.DataBuffer)
+		// get widgets and match topics
+		rows, err := db.Query("SELECT id FROM project_sections WHERE project_id = ?", project.ID)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		var data []WidgetData
+
+		for rows.Next() {
+			var projectSection ProjectSection
+
+			err = rows.Scan(&projectSection.ID)
+			if err != nil {
+				fmt.Fprintf(w, err.Error())
+				continue
+			}
+
+			// Query the widgets that are related to this section
+			widgetRows, err := db.Query("SELECT id, widget, config FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			for widgetRows.Next() {
+				var projectWidget ProjectWidget
+
+				err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
+				if err != nil {
+					fmt.Fprintf(w, err.Error())
+					continue
+				}
+
+				topic := ""
+
+				// check Config is not empty
+
+				if projectWidget.Widget == "TEXT" {
+					var textWidgetConfig TextWidgetConfig
+					err = json.Unmarshal(projectWidget.Config, &textWidgetConfig)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+
+					topic = textWidgetConfig.Topic
+					if topic == "" {
+						data = append(data, WidgetData{
+							ID: projectWidget.ID,
+							Data: nil,
+						})
+						continue
+					}
+
+					if connection.DataBuffer[topic] == nil || len(connection.DataBuffer[topic]) <= 0 {
+						data = append(data, WidgetData{
+							ID: projectWidget.ID,
+							Data: nil,
+						})
+						continue
+					}
+
+					data = append(data, WidgetData{
+						ID: projectWidget.ID,
+						Data: string(connection.DataBuffer[topic][len(connection.DataBuffer[topic]) - 1]),
+					})
+
+					continue
+				}
+
+				if topic == "" {
+					data = append(data, WidgetData{
+						ID: projectWidget.ID,
+						Data: nil,
+					})
+					continue
+				}
+
+				if connection.DataBuffer[topic] == nil || len(connection.DataBuffer[topic]) <= 0 {
+					data = append(data, WidgetData{
+						ID: projectWidget.ID,
+						Data: nil,
+					})
+					continue
+				}
+
+				data = append(data, WidgetData{
+					ID: projectWidget.ID,
+					Data: connection.DataBuffer[topic][0],
+				})
+			}
+
+			widgetRows.Close()
+		}
+
+		rows.Close()
+
+		resp, err := json.Marshal(data)
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 		w.Write(resp)
+	}
+}
+
+func projectSubmitValueHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		slugParameter := r.PathValue("slug")
+		id := r.FormValue("id")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// find connection
+		var connection *Connection
+		connectionFound := false
+		for i := 0; i < len(*connections); i++ {
+			if (*connections)[i].ProjectID == project.ID {
+				connectionFound = true
+				connection = (*connections)[i]
+				break
+			}
+		}
+
+		if !connectionFound {
+			http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
+			return
+		}
+
+		// find widget
+		var projectWidget ProjectWidget
+		err = db.QueryRow("SELECT id, widget, config FROM project_widgets WHERE id = ?", id).Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// parse config
+		if projectWidget.Widget == "BUTTON" {
+			var config ButtonWidgetConfig
+			err = json.Unmarshal(projectWidget.Config, &config)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			connection.SendMessage(config.Topic, string(config.Message))
+		}
+
+		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
 	}
 }

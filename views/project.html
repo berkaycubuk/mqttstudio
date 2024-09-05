@@ -1,15 +1,24 @@
 {{define "main"}}
-<h1>{{.Project.Name}}</h1>
 
-<div id="project-connection-status"></div>
+<header class="dashboard-header">
+	<div class="dashboard-header-title">{{.Project.Name}}</div>
 
-<form method="POST" action="/projects/{{.Project.Slug}}/connect">
-	<button>Connect</button>
-</form>
+	<div class="dashboard-header-connection">
+		<div id="project-connection-status"></div>
 
-<form method="POST" action="/projects/{{.Project.Slug}}/disconnect">
-	<button>Disconnect</button>
-</form>
+		<div class="dashboard-header-connection-actions">
+			<form method="POST" action="/projects/{{.Project.Slug}}/connect">
+				<button>Connect</button>
+			</form>
+
+			<form method="POST" action="/projects/{{.Project.Slug}}/disconnect">
+				<button>Disconnect</button>
+			</form>
+		</div>
+	</div>
+</header>
+
+<main class="dashboard-main">
 
 <!-- SECTIONS -->
 <div class="project-sections">
@@ -27,6 +36,14 @@
 			<!-- WIDGET -->
 			<div class="project-widget" data-widget-id="{{.ID}}">
 				<div>{{.Widget}}</div>
+				{{if eq .Widget "TEXT"}}
+				<div data-widget-value>-- NO DATA --</div>
+				{{else if eq .Widget "BUTTON"}}
+				<form method="POST" action="/projects/{{$slug}}/submit-value">
+					<input style="display: none;" type="hidden" value="{{.ID}}" name="id" />
+					<button class="button button--primary">Submit</button>
+				</form>
+				{{end}}
 			</div>
 			<!-- WIDGET -->
 			{{end}}
@@ -38,17 +55,20 @@
 				</div>
 
 				<!-- NEW WIDGET DIALOG -->
-				<dialog>
-					<button class="close-new-widget-dialog">Close</button>
+				<dialog class="new-widget-dialog">
+					<header class="new-widget-dialog-header">
+						<div class="new-widget-dialog-header-title">New widget</div>
+						<button class="button button--secondary close-new-widget-dialog">Close</button>
+					</header>
 					<form method="POST" action="/projects/{{$slug}}/new-widget">
-						<div>New widget</div>
-						<input type="hidden" name="id" value="{{.ID}}" />
-						<select name="widget">
+						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+						<select class="input" name="widget">
 							<option value="TEXT">TEXT</option>
-							<option value="NUMBER">NUMBER</option>
+							<option value="BUTTON">BUTTON</option>
 						</select>
-						<input type="text" name="topic" placeholder="Topic" />
-						<button>Add</button>
+						<input class="input" type="text" name="topic" placeholder="Topic" />
+						<input class="input" type="text" name="message" placeholder="Message" />
+						<button class="button button--primary">Add</button>
 					</form>
 				</dialog>
 				<!-- NEW WIDGET DIALOG -->
@@ -72,6 +92,8 @@
 
 </div>
 <!-- SECTIONS -->
+
+</main>
 {{end}}
 
 {{define "scripts"}}
@@ -99,14 +121,27 @@
 
 		fetch('/projects/{{.Project.Slug}}/connection').then(res => res.text()).then(data => {
 			connectionStatus.innerHTML = data;
-			setTimeout(fetchStatus, 5000)
+			setTimeout(fetchStatus, 2000)
 		})
 	}
 
 	function fetchData() {
 		fetch('/projects/{{.Project.Slug}}/data').then(res => res.json()).then(data => {
-			console.log(data)
-			setTimeout(fetchData, 5000)
+			if (data == null || data == undefined) return;
+
+			for (let i = 0; i < data.length; i++) {
+				let widget = document.querySelector('[data-widget-id="' + data[i].ID + '"]');
+				if (!widget) continue;
+				let value = widget.querySelector('[data-widget-value]');
+				if (!value) continue;
+				if (data[i].Data == undefined || data[i].Data == null) {
+					value.innerHTML = "-- NO DATA --";
+				} else {
+					value.innerHTML = data[i].Data;
+				}
+			}
+
+			setTimeout(fetchData, 2000)
 		})
 	}
 
