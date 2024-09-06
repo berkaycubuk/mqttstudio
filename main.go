@@ -102,6 +102,7 @@ func main() {
 	mux.HandleFunc("/projects/{slug}/edit-widget", projectEditWidgetHandler(db))
 	mux.HandleFunc("/projects/{slug}/edit-section", projectEditSectionHandler(db))
 	mux.HandleFunc("/projects/{slug}/delete-section", projectDeleteSectionHandler(db))
+	mux.HandleFunc("/projects/{slug}/settings", projectSettingsViewHandler(db))
 
 	// Admin routes
 	mux.HandleFunc("/admin/projects", adminProjectsHandler(db))

@@ -1062,3 +1062,19 @@ func projectEditSectionHandler(db *sql.DB) http.HandlerFunc {
 		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
 	}
 }
+
+func projectSettingsViewHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slugParameter := r.PathValue("slug")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/project-settings.html"))
+		tmpl.Execute(w, project)
+	}
+}

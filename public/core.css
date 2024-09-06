@@ -395,3 +395,51 @@ html, body {
 	grid-column: 1 / 2;
 }
 /* NEW-WIDGET-DIALOG */
+
+/* DASHBOARD-TABLE */
+.dashboard-table {
+	
+}
+
+.dashboard-table table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.dashboard-table thead tr th {
+	font-size: 14px;
+}
+
+.dashboard-table tr th,
+.dashboard-table tr td {
+	text-align: left;
+	padding: 6px;
+}
+
+.dashboard-table tbody tr:hover {
+	cursor: pointer;
+	background-color: var(--gray);
+}
+
+.dashboard-table-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.dashboard-table-actions a {
+	text-decoration: none;
+}
+
+.dashboard-table-actions button {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-weight: 600;
+	background: transparent;
+	border: none;
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+/* DASHBOARD-TABLE */
