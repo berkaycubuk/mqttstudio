@@ -1,0 +1,28 @@
+{{define "main"}}
+
+<table>
+	<thead>
+		<tr>
+			<th>ID</th>
+			<th>Name</th>
+			<th></th>
+		</tr>
+	</thead>
+	<tbody>
+		{{range .}}
+		<tr>
+			<td>{{.ID}}</td>
+			<td>{{.Name}}</td>
+			<td>
+				<a href="/projects/{{.Slug}}">VIEW</a>   
+				<form method="POST" action="/delete-project">
+					<input type="hidden" name="id" value="{{.ID}}" />
+					<button>DELETE</button>
+				</form>
+			</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
+
+{{end}}

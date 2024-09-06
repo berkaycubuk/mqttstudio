@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -26,15 +27,18 @@ func init() {
 	mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
 }
 
-func (c *Connection) Connect() error {
+func (c *Connection) Connect(db *sql.DB) error {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(c.Broker)
 	opts.SetClientID(c.ClientID)
 	//opts.SetUsername("emqx")
 	//opts.SetPassword("public")
 
-    opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
-        fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
+		fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+
+		// Register to the database
+		createDataLog(db, msg.Topic(), msg.Payload())
 
 		if len(c.DataBuffer) == 0 {
 			c.DataBuffer = make(map[string][][]byte)
@@ -47,7 +51,7 @@ func (c *Connection) Connect() error {
 				msg.Payload(),
 			}
 		}
-    })
+	})
 
 	c.Client = mqtt.NewClient(opts)
 	if token := c.Client.Connect(); token.Wait() && token.Error() != nil {

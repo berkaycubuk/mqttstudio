@@ -70,6 +70,7 @@ func main() {
 		createProjectsTable(db)
 		createUsersTable(db)
 		createLogsTable(db)
+		createDataLogsTable(db)
 	}
 
 	var connections []*Connection
@@ -88,6 +89,7 @@ func main() {
 
 	mux.HandleFunc("/add-to-cart", addToCartHandler(db))
 	mux.HandleFunc("/cart", cartHandler(db))
+	mux.HandleFunc("/projects", projectsHandler(db, localizer))
 	mux.HandleFunc("/projects/{slug}", projectViewHandler(db, localizer))
 	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db))
 	mux.HandleFunc("/projects/{slug}/new-widget", projectNewWidgetHandler(db))

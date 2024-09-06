@@ -109,6 +109,33 @@ func createProjectWidgetsTable(db *sql.DB) {
 	}
 }
 
+func projectsHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rows, err := db.Query("SELECT id, name, slug FROM projects")
+		if err != nil {
+			fmt.Fprintf(w, err.Error())
+		}
+
+		var projects []Project
+
+		for rows.Next() {
+			var project Project
+			err = rows.Scan(&project.ID, &project.Name, &project.Slug)
+			if err != nil {
+				fmt.Fprintf(w, err.Error())
+				continue
+			}
+
+			projects = append(projects, project)
+		}
+
+		rows.Close()
+
+		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/projects.html"))
+		tmpl.Execute(w, projects)
+	}
+}
+
 func projectViewHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		slugParameter := req.PathValue("slug")
@@ -516,7 +543,7 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 			rows.Close()
 
 			go func() {
-				err = connection.Connect()
+				err = connection.Connect(db)
 				if err != nil {
 					log.Fatal(err)
 					return
