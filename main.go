@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
+	"golang.org/x/text/language"
 )
 
 func homeHandler(db *sql.DB) http.HandlerFunc {
@@ -71,6 +74,12 @@ func main() {
 
 	var connections []*Connection
 
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
+	bundle.MustLoadMessageFile("./lang/core.en.toml")
+
+	localizer := i18n.NewLocalizer(bundle, "en")
+
 	mux := http.NewServeMux()
 
 	// Auth routes
@@ -79,7 +88,7 @@ func main() {
 
 	mux.HandleFunc("/add-to-cart", addToCartHandler(db))
 	mux.HandleFunc("/cart", cartHandler(db))
-	mux.HandleFunc("/projects/{slug}", projectViewHandler(db))
+	mux.HandleFunc("/projects/{slug}", projectViewHandler(db, localizer))
 	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db))
 	mux.HandleFunc("/projects/{slug}/new-widget", projectNewWidgetHandler(db))
 	mux.HandleFunc("/projects/{slug}/connect", projectConnectHandler(db, &connections))
@@ -89,6 +98,8 @@ func main() {
 	mux.HandleFunc("/projects/{slug}/submit-value", projectSubmitValueHandler(db, &connections))
 	mux.HandleFunc("/projects/{slug}/delete-widget", projectDeleteWidgetHandler(db))
 	mux.HandleFunc("/projects/{slug}/edit-widget", projectEditWidgetHandler(db))
+	mux.HandleFunc("/projects/{slug}/edit-section", projectEditSectionHandler(db))
+	mux.HandleFunc("/projects/{slug}/delete-section", projectDeleteSectionHandler(db))
 
 	// Admin routes
 	mux.HandleFunc("/admin/projects", adminProjectsHandler(db))

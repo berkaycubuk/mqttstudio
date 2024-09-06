@@ -1,0 +1,12 @@
+online = "online"
+offline = "offline"
+connect = "Connect"
+disconnect = "Disconnect"
+
+display_mode = "Display Mode"
+edit_mode = "Edit Mode"
+
+edit = "Edit"
+delete = "Delete"
+
+no_data = "NO DATA"

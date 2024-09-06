@@ -7,6 +7,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
 type Project struct {
@@ -30,6 +32,7 @@ type ProjectSection struct {
 type ProjectWidget struct {
 	ID int
 	ProjectSectionID int
+	Title string
 	Widget string
 	Config []byte
 	ConfigParsed any
@@ -38,6 +41,7 @@ type ProjectWidget struct {
 type ProjectViewData struct {
 	Project		Project
 	Sections	[]ProjectSection
+	Lang		map[string]string
 }
 
 type TextWidgetConfig struct {
@@ -95,7 +99,8 @@ func createProjectWidgetsTable(db *sql.DB) {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS project_widgets(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 		project_section_id INTEGER NOT NULL,
-		widget TEXT,
+		title TEXT NOT NULL,
+		widget TEXT NOT NULL,
 		config BLOB
 	);`)
 	if err != nil {
@@ -104,7 +109,7 @@ func createProjectWidgetsTable(db *sql.DB) {
 	}
 }
 
-func projectViewHandler(db *sql.DB) http.HandlerFunc {
+func projectViewHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		slugParameter := req.PathValue("slug")
 
@@ -137,7 +142,7 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 			}
 
 			// Query the widgets that are related to this section
-			widgetRows, err := db.Query("SELECT id, widget, config FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
+			widgetRows, err := db.Query("SELECT id, widget, title, config FROM project_widgets WHERE project_section_id = ?", projectSection.ID)
 			if err != nil {
 				log.Fatal(err)
 				return
@@ -147,7 +152,7 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 			for widgetRows.Next() {
 				var projectWidget ProjectWidget
 
-				err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Config)
+				err = widgetRows.Scan(&projectWidget.ID, &projectWidget.Widget, &projectWidget.Title, &projectWidget.Config)
 				if err != nil {
 					fmt.Fprintf(w, err.Error())
 					continue
@@ -161,12 +166,6 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 						log.Fatal(err)
 						return
 					}
-					/*
-					if projectWidget.Widget == "TEXT" {
-					} else if projectWidget.Widget == "BUTTON" {
-					} else if projectWidget.Widget == "INDICATOR" {
-					}
-					*/
 				}
 
 				projectWidget.ConfigParsed = config
@@ -183,10 +182,23 @@ func projectViewHandler(db *sql.DB) http.HandlerFunc {
 
 		rows.Close()
 
+		lang := map[string]string{
+			"online": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "online"}),
+			"offline": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "offline"}),
+			"display_mode": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "display_mode"}),
+			"edit_mode": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "edit_mode"}),
+			"edit": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "edit"}),
+			"delete": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "delete"}),
+			"connect": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "connect"}),
+			"disconnect": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "disconnect"}),
+			"no_data": localizer.MustLocalize(&i18n.LocalizeConfig{MessageID: "no_data"}),
+		}
+
 		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/project.html"))
 		tmpl.Execute(w, ProjectViewData{
 			Project: project,
 			Sections: projectSections,
+			Lang: lang,
 		})
 	}
 }
@@ -314,6 +326,7 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 
 		// TODO: validate fields
 		id := r.FormValue("id")
+		title := r.FormValue("title")
 		topic := r.FormValue("topic")
 		slug := r.PathValue("slug")
 		widget := r.FormValue("widget")
@@ -323,12 +336,17 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if title == "" {
+			http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
+			return
+		}
+
 		if widget == "" {
 			http.Redirect(w, r, "/projects/" + slug, http.StatusFound)
 			return
 		}
 
-		stmt, err := db.Prepare("INSERT INTO project_widgets(project_section_id, widget, config) VALUES(?,?,?)")
+		stmt, err := db.Prepare("INSERT INTO project_widgets(project_section_id, widget, title, config) VALUES(?,?,?,?)")
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -379,7 +397,7 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 			})
 		}
 
-		res, err := stmt.Exec(id, widget, config)
+		res, err := stmt.Exec(id, widget, title, config)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -867,6 +885,7 @@ func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
 
 		slugParameter := r.PathValue("slug")
 		id := r.FormValue("id")
+		title := r.FormValue("title")
 
 		var project Project
 		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
@@ -909,13 +928,105 @@ func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
 			})
 		}
 
-		stmt, err := db.Prepare("UPDATE project_widgets set config = ? where id = ?")
+		stmt, err := db.Prepare("UPDATE project_widgets set title = ?, config = ? where id = ?")
 		if err != nil {
 			log.Fatal(err)
 			return
 		}
 
-		_, err = stmt.Exec(config, projectWidget.ID)
+		_, err = stmt.Exec(title, config, projectWidget.ID)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
+	}
+}
+
+func projectDeleteSectionHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		slugParameter := r.PathValue("slug")
+		id := r.FormValue("id")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// remove related widgets
+		stmt, err := db.Prepare("DELETE FROM project_widgets WHERE project_section_id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(id)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		// remove section
+		stmt, err = db.Prepare("DELETE FROM project_sections WHERE id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(id)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		http.Redirect(w, r, "/projects/" + slugParameter, http.StatusFound)
+	}
+}
+
+func projectEditSectionHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		slugParameter := r.PathValue("slug")
+		id := r.FormValue("id")
+		name := r.FormValue("name")
+
+		var project Project
+		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// update section
+		stmt, err := db.Prepare("UPDATE project_sections set name = ? WHERE id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(name, id)
 		if err != nil {
 			log.Fatal(err)
 			return

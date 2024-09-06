@@ -1,28 +1,67 @@
 {{define "main"}}
 
 <header class="dashboard-header">
-	<div class="dashboard-header-title">{{.Project.Name}}</div>
+	<div class="dashboard-header-left">
+		<!-- GO-BACK -->
+		<a class="dashboard-header-icon-button" href="/projects">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+		  <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-4.28 9.22a.75.75 0 0 0 0 1.06l3 3a.75.75 0 1 0 1.06-1.06l-1.72-1.72h5.69a.75.75 0 0 0 0-1.5h-5.69l1.72-1.72a.75.75 0 0 0-1.06-1.06l-3 3Z" clip-rule="evenodd" />
+		</svg>
+		</a>
+		<!-- GO-BACK -->
 
-	<!-- EDIT-VIEW-MODE-SELECTOR -->
-	<div class="dashboard-mode-selector">
-		<div class="dashboard-mode-selector-option dashboard-mode-selector-option-display">Display mode</div>
-		<input id="dashboard-mode-selector" type="checkbox" />
-		<div class="dashboard-mode-selector-option dashboard-mode-selector-option-edit">Edit mode</div>
+		<div class="dashboard-header-title">{{.Project.Name}}</div>
 	</div>
-	<!-- EDIT-VIEW-MODE-SELECTOR -->
 
-	<div class="dashboard-header-connection">
-		<div id="project-connection-status"></div>
+	<div class="dashboard-header-right">
 
-		<div class="dashboard-header-connection-actions">
-			<form method="POST" action="/projects/{{.Project.Slug}}/connect">
-				<button class="button button--secondary">Connect</button>
-			</form>
+		<!-- EDIT-MODE-BUTTON -->
+		<button class="dashboard-header-mode-button" data-dashboard-edit-mode-button onclick="changeDashboardModeToEdit(event)">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+		  <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
+		</svg>
+		{{.Lang.edit_mode}}</button>
+		<button class="dashboard-header-mode-button" data-dashboard-display-mode-button onclick="changeDashboardModeToDisplay(event)" style="display: none;">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+		  <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+		  <path fill-rule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 0 1 0-1.113ZM17.25 12a5.25 5.25 0 1 1-10.5 0 5.25 5.25 0 0 1 10.5 0Z" clip-rule="evenodd" />
+		</svg>
+		{{.Lang.display_mode}}</button>
+		<!-- EDIT-MODE-BUTTON -->
 
-			<form method="POST" action="/projects/{{.Project.Slug}}/disconnect">
-				<button class="button button--secondary">Disconnect</button>
-			</form>
-		</div>
+		<!-- CONNECTION -->
+		<form id="connection-status-form" method="POST" action="/projects/{{.Project.Slug}}/connect">
+			<button class="dashboard-header-connection-button">
+				<div class="dashboard-header-connection-button-status"></div>
+				<div class="dashboard-header-connection-button-text">{{.Lang.connect}}</div>
+			</button>
+		</form>
+		<!-- CONNECTION -->
+
+		<!-- SETTINGS-BUTTON -->
+		<button class="dashboard-header-icon-button">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+		  <path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clip-rule="evenodd" />
+		</svg>
+		</button>
+		<!-- SETTINGS-BUTTON -->
+
+		<!-- LOGS-BUTTON --->
+		<button class="dashboard-header-icon-button">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+		  <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625ZM7.5 15a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 7.5 15Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H8.25Z" clip-rule="evenodd" />
+		  <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
+		</svg>
+
+		</button>
+		<!-- LOGS-BUTTON --->
+
+		<!-- FULLSCREEN-BUTTON -->
+		<button class="dashboard-header-icon-button" onclick="document.body.requestFullscreen()">
+			<svg width="24px" height="24px" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000"><path d="M9 9L4 4M4 4V8M4 4H8" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 9L20 4M20 4V8M20 4H16" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M9 15L4 20M4 20V16M4 20H8" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M15 15L20 20M20 20V16M20 20H16" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+		</button>
+		<!-- FULLSCREEN-BUTTON -->
+
 	</div>
 </header>
 
@@ -32,10 +71,44 @@
 <div class="project-sections">
 
 	{{$slug := .Project.Slug}}
+	{{$lang := .Lang}}
 	{{range .Sections}}
 	<!-- SECTION -->
 	<div class="project-section">
-		<h2 class="project-section-title">{{.Name}}</h2>
+		<div class="project-section-header">
+			<div data-widget-edit-mode style="display: none;">
+				<button class="project-section-header-button" onclick="openEditSectionDialog('{{.ID}}')">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+				  <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
+				</svg>
+				</button>
+
+				<dialog class="new-widget-dialog" data-section-edit-dialog-id="{{.ID}}">
+					<header class="new-widget-dialog-header">
+						<div class="new-widget-dialog-header-title">Edit section</div>
+						<button onclick="closeEditSectionDialog('{{.ID}}')" class="button button--secondary">Close</button>
+					</header>
+					<form method="POST" action="/projects/{{$slug}}/edit-section">
+						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+						<div class="form-col">
+							<label>Name</label>
+							<input class="input" type="text" name="name" placeholder="Name" value="{{.Name}}" />
+						</div>
+						<button class="button button--primary">Save</button>
+					</form>
+				</dialog>
+
+				<form method="POST" action="/projects/{{$slug}}/delete-section">
+					<input type="hidden" value="{{.ID}}" name="id" />
+					<button class="project-section-header-button project-section-header-button--danger">
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px;">
+					  <path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clip-rule="evenodd" />
+					</svg>
+					</button>
+				</form>
+			</div>
+			<h2 class="project-section-title">{{.Name}}</h2>
+		</div>
 
 		<!-- WIDGETS -->
 		<div class="project-widgets">
@@ -43,14 +116,16 @@
 			{{range .Widgets}}
 			<!-- WIDGET -->
 			<div class="project-widget" data-widget-id="{{.ID}}">
-				<div data-widget-edit-mode style="display: none;">
+				<div data-widget-edit-mode class="project-widget-edit-toolbar" style="display: none;">
+
+					<button class="button button--small button--secondary" data-edit-widget-button data-edit-widget-id="{{.ID}}">{{$lang.edit}}</button>
+
 					<form method="POST" action="/projects/{{$slug}}/delete-widget">
 						<input type="hidden" name="id" value="{{.ID}}" />
-						<button>DELETE</button>
+						<button class="button button--small button--danger">{{$lang.delete}}</button>
 					</form>
 
-					<button data-edit-widget-button data-edit-widget-id="{{.ID}}">EDIT</button>
-					<!-- NEW WIDGET DIALOG -->
+					<!-- EDIT WIDGET DIALOG -->
 					<dialog class="edit-widget-dialog" data-edit-widget-dialog-id="{{.ID}}">
 						<header class="new-widget-dialog-header">
 							<div class="new-widget-dialog-header-title">Edit widget</div>
@@ -58,31 +133,53 @@
 						</header>
 						<form method="POST" action="/projects/{{$slug}}/edit-widget">
 							<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+							<div class="form-col">
+								<label>Title</label>
+								<input class="input" type="text" name="title" placeholder="Title" value="{{.Title}}" />
+							</div>
 							{{if eq .Widget "TEXT"}}
-							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							<div class="form-col">
+								<label>Topic</label>
+								<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							</div>
 							{{else if eq .Widget "BUTTON"}}
-							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
-							<input class="input" type="text" name="message" placeholder="Message" value="{{.ConfigParsed.Message}}" />
+							<div class="form-col">
+								<label>Topic</label>
+								<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							</div>
+							<div class="form-col">
+								<label>Message</label>
+								<input class="input" type="text" name="message" placeholder="Message" value="{{.ConfigParsed.Message}}" />
+							</div>
 							{{else if eq .Widget "INDICATOR"}}
-							<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
-							<input class="input" type="text" name="on-condition" placeholder="ON condition" value="{{.ConfigParsed.OnCondition}}" />
-							<input class="input" type="color" name="color" value="{{.ConfigParsed.Color}}" />
+							<div class="form-col">
+								<label>Topic</label>
+								<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							</div>
+							<div class="form-col">
+								<label>ON Condition</label>
+								<input class="input" type="text" name="on-condition" placeholder="ON condition" value="{{.ConfigParsed.OnCondition}}" />
+							</div>
+							<div class="form-col">
+								<label>Color</label>
+								<input class="input" type="color" name="color" value="{{.ConfigParsed.Color}}" />
+							</div>
 							{{end}}
 							<button class="button button--primary">Save</button>
 						</form>
 					</dialog>
-					<!-- NEW WIDGET DIALOG -->
+					<!-- EDIT WIDGET DIALOG -->
 				</div>
 
-				<div>{{.Widget}}</div>
+				<div class="project-widget-title">{{.Title}}</div>
 				{{if eq .Widget "TEXT"}}
-				<div data-widget-value>-- NO DATA --</div>
+				<div data-widget-value>-- {{$lang.no_data}} --</div>
 				{{else if eq .Widget "INDICATOR"}}
-				<div data-widget-value>-- NO DATA --</div>
+				<div data-widget-value>-- {{$lang.no_data}} --</div>
 				{{else if eq .Widget "BUTTON"}}
 				<form method="POST" action="/projects/{{$slug}}/submit-value">
 					<input style="display: none;" type="hidden" value="{{.ID}}" name="id" />
-					<button class="button button--primary">Submit</button>
+					<button style="width: 100%;" class="button button--primary">Submit</button>
 				</form>
 				{{end}}
 			</div>
@@ -90,9 +187,12 @@
 			{{end}}
 
 			<!-- NEW WIDGET -->
-			<div class="new-widget">
+			<div class="new-widget" data-widget-edit-mode style="display: none;">
 				<div class="project-widget">
 					<div>Add new widget</div>
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+					  <path d="M6 3a3 3 0 0 0-3 3v2.25a3 3 0 0 0 3 3h2.25a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3H6ZM15.75 3a3 3 0 0 0-3 3v2.25a3 3 0 0 0 3 3H18a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3h-2.25ZM6 12.75a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h2.25a3 3 0 0 0 3-3v-2.25a3 3 0 0 0-3-3H6ZM17.625 13.5a.75.75 0 0 0-1.5 0v2.625H13.5a.75.75 0 0 0 0 1.5h2.625v2.625a.75.75 0 0 0 1.5 0v-2.625h2.625a.75.75 0 0 0 0-1.5h-2.625V13.5Z" />
+					</svg>
 				</div>
 
 				<!-- NEW WIDGET DIALOG -->
@@ -103,32 +203,62 @@
 					</header>
 
 					<div data-new-widget-selector class="new-widget-widgets">
-						<button onclick="selectNewWidget('text', '{{.ID}}')">Text</button>
-						<button onclick="selectNewWidget('button', '{{.ID}}')">Button</button>
-						<button onclick="selectNewWidget('indicator', '{{.ID}}')">Indicator</button>
+						<button class="button button--secondary" onclick="selectNewWidget('text', '{{.ID}}')">Text</button>
+						<button class="button button--secondary" onclick="selectNewWidget('button', '{{.ID}}')">Button</button>
+						<button class="button button--secondary" onclick="selectNewWidget('indicator', '{{.ID}}')">Indicator</button>
 					</div>
 
 					<form data-new-widget-text method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
 						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
 						<input style="display: none;" type="hidden" name="widget" value="TEXT" />
-						<input class="input" type="text" name="topic" placeholder="Topic" />
+						<div class="form-col">
+							<label>Title</label>
+							<input class="input" type="text" name="title" placeholder="Title" />
+						</div>
+						<div class="form-col">
+							<label>Topic</label>
+							<input class="input" type="text" name="topic" placeholder="Topic" />
+						</div>
 						<button class="button button--primary">Add</button>
 					</form>
 
 					<form data-new-widget-button method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
 						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
 						<input style="display: none;" type="hidden" name="widget" value="BUTTON" />
-						<input class="input" type="text" name="topic" placeholder="Topic" />
-						<input class="input" type="text" name="message" placeholder="Message" />
+						<div class="form-col">
+							<label>Title</label>
+							<input class="input" type="text" name="title" placeholder="Title" />
+						</div>
+						<div class="form-col">
+							<label>Topic</label>
+							<input class="input" type="text" name="topic" placeholder="Topic" />
+						</div>
+						<div class="form-col">
+							<label>Message</label>
+							<input class="input" type="text" name="message" placeholder="Message" />
+						</div>
 						<button class="button button--primary">Add</button>
 					</form>
 
 					<form data-new-widget-indicator method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
 						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
 						<input style="display: none;" type="hidden" name="widget" value="INDICATOR" />
-						<input class="input" type="text" name="topic" placeholder="Topic" />
-						<input class="input" type="text" name="on-condition" placeholder="ON condition" />
-						<input class="input" type="color" name="color" />
+						<div class="form-col">
+							<label>Title</label>
+							<input class="input" type="text" name="title" placeholder="Title" />
+						</div>
+						<div class="form-col">
+							<label>Topic</label>
+							<input class="input" type="text" name="topic" placeholder="Topic" />
+						</div>
+						<div class="form-col">
+							<label>ON Condition</label>
+							<input class="input" type="text" name="on-condition" placeholder="ON condition" />
+						</div>
+						<div class="form-col">
+							<label>Color</label>
+							<input class="input" type="color" name="color" />
+						</div>
 						<button class="button button--primary">Add</button>
 					</form>
 
@@ -144,11 +274,13 @@
 	{{end}}
 
 	<!-- NEW SECTION FORM -->
-	<form method="POST" action="/projects/{{$slug}}/new-section">
+	<form data-widget-edit-mode method="POST" action="/projects/{{$slug}}/new-section" class="project-new-section" style="display: none;">
 		<div>New section</div>
-		<input type="hidden" name="id" value="{{.Project.ID}}" />
-		<input type="text" name="name" placeholder="Name" />
-		<button>Add</button>
+		<div class="project-new-section-inputs">
+			<input type="hidden" name="id" value="{{.Project.ID}}" />
+			<input class="input" type="text" name="name" placeholder="Name" />
+			<button class="button button--primary">Add</button>
+		</div>
 	</form>
 	<!-- NEW SECTION FORM -->
 
@@ -161,24 +293,6 @@
 {{define "scripts"}}
 <script>
 	let dashboardMode = "DISPLAY";
-	let dashboardModeSelector = document.getElementById("dashboard-mode-selector");
-	dashboardModeSelector.addEventListener('click', () => {
-		if (dashboardMode == "DISPLAY") {
-			dashboardMode = "EDIT";
-
-			const els = document.querySelectorAll('[data-widget-edit-mode]');
-			for (let i = 0; i < els.length; i++) {
-				els[i].style.display = "block";
-			}
-		} else {
-			dashboardMode = "DISPLAY";
-
-			const els = document.querySelectorAll('[data-widget-edit-mode]');
-			for (let i = 0; i < els.length; i++) {
-				els[i].style.display = "none";
-			}
-		}
-	})
 
 	// Edit buttons
 	const editButtons = document.querySelectorAll('[data-edit-widget-button]');
@@ -194,6 +308,15 @@
 		closeButton.addEventListener('click', (e) => {
 			editDialog.close();
 		});
+	}
+
+	// Edit section
+	function openEditSectionDialog(id) {
+		document.querySelector('[data-section-edit-dialog-id="' + id + '"]').showModal()
+	}
+
+	function closeEditSectionDialog(id) {
+		document.querySelector('[data-section-edit-dialog-id="' + id + '"]').close()
 	}
 
 	let newWidgetButtons = document.querySelectorAll(".new-widget");
@@ -213,7 +336,7 @@
 				forms[j].style.display = "none";
 			}
 
-			dialog.querySelector('[data-new-widget-selector]').style.display = "block";
+			dialog.querySelector('[data-new-widget-selector]').style.display = "grid";
 		})
 
 		newWidgetButtons[i].querySelector(".project-widget").addEventListener('click', () => {
@@ -223,15 +346,49 @@
 
 	function selectNewWidget(widget, sectionID) {
 		const dialog = document.querySelector('[data-new-widget-section-id="' + sectionID + '"]');
-		dialog.querySelector('[data-new-widget-' + widget + ']').style.display = "block";
+		dialog.querySelector('[data-new-widget-' + widget + ']').style.display = "grid";
 		dialog.querySelector('[data-new-widget-selector]').style.display = "none";
 	}
 
+	function changeDashboardModeToEdit(e) {
+		document.querySelector('[data-dashboard-edit-mode-button]').style.display = "none";
+		document.querySelector('[data-dashboard-display-mode-button]').style.display = "flex";
+
+		const els = document.querySelectorAll('[data-widget-edit-mode]');
+		for (let i = 0; i < els.length; i++) {
+			els[i].style.display = "flex";
+		}
+	}
+
+	function changeDashboardModeToDisplay(e) {
+		document.querySelector('[data-dashboard-display-mode-button]').style.display = "none";
+		document.querySelector('[data-dashboard-edit-mode-button]').style.display = "flex";
+
+		const els = document.querySelectorAll('[data-widget-edit-mode]');
+		for (let i = 0; i < els.length; i++) {
+			els[i].style.display = "none";
+		}
+	}
+
 	function fetchStatus() {
-		let connectionStatus = document.getElementById("project-connection-status");
+		const status = document.querySelector('.dashboard-header-connection-button-status');
+		const text = document.querySelector('.dashboard-header-connection-button-text');
+		const form = document.getElementById('connection-status-form');
+
+		let formActionArr = form.action.split("/")
+		const arrLength = formActionArr.length
 
 		fetch('/projects/{{.Project.Slug}}/connection').then(res => res.text()).then(data => {
-			connectionStatus.innerHTML = data;
+			if (data == "online") {
+				text.innerHTML = "{{.Lang.disconnect}}";
+				formActionArr[arrLength - 1] = "disconnect"
+				status.style.backgroundColor = "var(--green)";
+			} else {
+				text.innerHTML = "{{.Lang.connect}}";
+				formActionArr[arrLength - 1] = "connect"
+				status.style.backgroundColor = "var(--red)";
+			}
+			form.action = formActionArr.join("/")
 			setTimeout(fetchStatus, 2000)
 		})
 	}
@@ -246,7 +403,7 @@
 				let value = widget.querySelector('[data-widget-value]');
 				if (!value) continue;
 				if (data[i].Data == undefined || data[i].Data == null) {
-					value.innerHTML = "-- NO DATA --";
+					value.innerHTML = "-- {{.Lang.no_data}} --";
 				} else {
 					value.innerHTML = data[i].Data;
 				}
