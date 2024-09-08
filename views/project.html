@@ -300,8 +300,16 @@
 
 		</div>
 		<!-- WIDGETS -->
+
+		{{if not .Widgets}}
+			Click to "Edit Mode" and create your first widget.
+		{{end}}
 	</div>
 	<!-- SECTION -->
+	{{end}}
+
+	{{if not .Sections}}
+		Click to "Edit Mode" and create your first section.
 	{{end}}
 
 	<!-- NEW SECTION FORM -->

@@ -35,6 +35,16 @@ func createUsersTable(db *sql.DB) {
 	}
 }
 
+func GetUserByID(db *sql.DB, id int) (*User, error) {
+	var user User
+	err := db.QueryRow("SELECT id, name, email FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name, &user.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func loginHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
@@ -175,6 +185,23 @@ func signupHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	}
 }
 
+func logoutHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
+		// Invalidate the session
+		session.Options.MaxAge = -1
+		session.Save(r, w)
+
+		http.Redirect(w, r, "/login", http.StatusFound)
+	}
+}
+
 func HashUserPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -183,4 +210,23 @@ func HashUserPassword(password string) (string, error) {
 func VerifyUserPassword(password string, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+func accountHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session := GetAuthSession(store, r)
+		if session == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		user, err := GetUserByID(db, session.Values["user_id"].(int))
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/account.html"))
+		tmpl.Execute(w, user)
+	}
 }

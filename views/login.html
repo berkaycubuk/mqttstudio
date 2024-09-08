@@ -1,9 +1,17 @@
 {{define "main"}}
-<h1>Log in to MQTT Studio</h1>
 
-<form method="POST">
-	<input type="text" name="email" placeholder="E-mail" />
-	<input type="password" name="password" placeholder="Password" />
-	<button>Log in</button>
-</form>
+<main class="auth-main">
+
+	<div class="auth-container">
+		<h1>Log in to MQTT Studio</h1>
+
+		<form method="POST" class="auth-form">
+			<input class="input" type="text" name="email" placeholder="E-mail" />
+			<input class="input" type="password" name="password" placeholder="Password" />
+			<button class="button button--primary">Log in</button>
+		</form>
+	</div>
+
+</main>
+
 {{end}}

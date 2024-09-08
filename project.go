@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/sessions"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 )
 
@@ -127,8 +128,15 @@ func createProjectWidgetsTable(db *sql.DB) {
 	}
 }
 
-func projectsHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
+func projectsHandler(db *sql.DB, localizer *i18n.Localizer, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		rows, err := db.Query("SELECT id, name, slug FROM projects")
 		if err != nil {
 			fmt.Fprintf(w, err.Error())
@@ -154,8 +162,15 @@ func projectsHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
 	}
 }
 
-func projectViewHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc {
+func projectViewHandler(db *sql.DB, localizer *i18n.Localizer, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		session, _ := store.Get(req, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, req, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := req.PathValue("slug")
 
 		if slugParameter == "" {
@@ -248,8 +263,52 @@ func projectViewHandler(db *sql.DB, localizer *i18n.Localizer) http.HandlerFunc 
 	}
 }
 
-func adminProjectsHandler(db *sql.DB) http.HandlerFunc {
+func adminDeleteProjectHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			fmt.Fprint(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
+		if err := r.ParseForm(); err != nil {
+			fmt.Fprintf(w, "ERROR: %v", err)
+			return
+		}
+
+		id := r.FormValue("id")
+
+		stmt, err := db.Prepare("DELETE FROM projects WHERE id = ?")
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		_, err = stmt.Exec(id)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+
+		http.Redirect(w, r, "/admin/projects", http.StatusFound)
+	}
+}
+
+func adminProjectsHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		rows, err := db.Query("SELECT id, name, slug FROM projects")
 		if err != nil {
 			fmt.Fprintf(w, err.Error())
@@ -275,8 +334,15 @@ func adminProjectsHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
+func adminNewProjectHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		session, _ := store.Get(req, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, req, "/login", http.StatusFound)
+			return
+		}
+
 		if req.Method == "GET" {
 			tmpl := template.Must(template.ParseFiles("./views/admin/layout.html", "./views/admin/new-project.html"))
 			tmpl.Execute(w, "")
@@ -294,6 +360,11 @@ func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
 			brokerProtocol := req.FormValue("broker-protocol")
 
 			// TODO: Get team id of the user
+			teamUser, err := GetTeamUserByUserID(db, session.Values["user_id"].(int))
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
 
 			stmt, err := db.Prepare("INSERT INTO projects(team_id,name,slug,broker_client_id,broker_address,broker_port,broker_protocol) VALUES(?,?,?,?,?,?,?)")
 			if err != nil {
@@ -301,7 +372,7 @@ func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			res, err := stmt.Exec(1, name, slug, brokerClientID, brokerAddress, brokerPort, brokerProtocol)
+			res, err := stmt.Exec(teamUser.TeamID, name, slug, brokerClientID, brokerAddress, brokerPort, brokerProtocol)
 			if err != nil {
 				log.Fatal(err)
 				return
@@ -320,10 +391,17 @@ func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectNewSectionHandler(db *sql.DB) http.HandlerFunc {
+func projectNewSectionHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprint(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -359,10 +437,17 @@ func projectNewSectionHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
+func projectNewWidgetHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprint(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -468,8 +553,15 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+func projectConnectHandler(db *sql.DB, connections *[]*Connection, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := r.PathValue("slug")
 
 		var project Project
@@ -596,8 +688,15 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 	}
 }
 
-func projectDisconnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+func projectDisconnectHandler(db *sql.DB, connections *[]*Connection, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := r.PathValue("slug")
 
 		var project Project
@@ -627,8 +726,15 @@ func projectDisconnectHandler(db *sql.DB, connections *[]*Connection) http.Handl
 	}
 }
 
-func projectConnectionHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+func projectConnectionHandler(db *sql.DB, connections *[]*Connection, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := r.PathValue("slug")
 
 		var project Project
@@ -663,8 +769,15 @@ func projectConnectionHandler(db *sql.DB, connections *[]*Connection) http.Handl
 	}
 }
 
-func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+func projectDataHandler(db *sql.DB, connections *[]*Connection, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := r.PathValue("slug")
 
 		var project Project
@@ -870,10 +983,17 @@ func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc
 	}
 }
 
-func projectSubmitValueHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc {
+func projectSubmitValueHandler(db *sql.DB, connections *[]*Connection, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -932,10 +1052,17 @@ func projectSubmitValueHandler(db *sql.DB, connections *[]*Connection) http.Hand
 	}
 }
 
-func projectDeleteWidgetHandler(db *sql.DB) http.HandlerFunc {
+func projectDeleteWidgetHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -970,10 +1097,17 @@ func projectDeleteWidgetHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
+func projectEditWidgetHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -1052,10 +1186,17 @@ func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectDeleteSectionHandler(db *sql.DB) http.HandlerFunc {
+func projectDeleteSectionHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -1104,10 +1245,17 @@ func projectDeleteSectionHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectEditSectionHandler(db *sql.DB) http.HandlerFunc {
+func projectEditSectionHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			fmt.Fprintf(w, "Only POST method is supported.")
+			return
+		}
+
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
 
@@ -1144,8 +1292,15 @@ func projectEditSectionHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func projectSettingsViewHandler(db *sql.DB) http.HandlerFunc {
+func projectSettingsViewHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := store.Get(r, "mqtt-studio-session")
+
+		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+
 		slugParameter := r.PathValue("slug")
 
 		var project Project

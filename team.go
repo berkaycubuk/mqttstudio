@@ -82,6 +82,7 @@ func CreateTeamUser(db *sql.DB, teamID int, userID int, role string) (int, error
 }
 
 func GetTeamUserByUserID(db *sql.DB, userID int) (*TeamUser, error) {
+	// fix this to cover all teams
 	var teamUser TeamUser
 	err := db.QueryRow("SELECT * FROM team_users WHERE user_id = ?", userID).Scan(&teamUser.ID, &teamUser.TeamID, &teamUser.UserID, &teamUser.Role)
 	if err != nil {

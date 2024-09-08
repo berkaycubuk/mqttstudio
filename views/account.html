@@ -1,0 +1,38 @@
+{{define "main"}}
+<header class="dashboard-header">
+	<div class="dashboard-header-left">
+		<!-- GO-BACK -->
+		<a class="dashboard-header-icon-button" href="/projects">
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
+		  <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-4.28 9.22a.75.75 0 0 0 0 1.06l3 3a.75.75 0 1 0 1.06-1.06l-1.72-1.72h5.69a.75.75 0 0 0 0-1.5h-5.69l1.72-1.72a.75.75 0 0 0-1.06-1.06l-3 3Z" clip-rule="evenodd" />
+		</svg>
+		</a>
+		<!-- GO-BACK -->
+
+		<div class="dashboard-header-title">Account</div>
+	</div>
+
+	<div class="dashboard-header-right">
+	</div>
+</header>
+
+<main style="padding: 10px;">
+
+	<form class="form">
+
+		<div class="form-col">
+			<label>Name</label>
+			<input class="input" type="text" name="name" value="{{.Name}}" disabled />
+		</div>
+
+		<div class="form-col">
+			<label>E-mail</label>
+			<input class="input" type="email" name="email" value="{{.Email}}" disabled />
+		</div>
+
+	</form>
+
+	<a style="margin-top: 20px;" class="button button--primary" href="/logout">Logout</a>
+
+</main>
+{{end}}

@@ -34,6 +34,8 @@ html, body {
 
 /* BUTTON */
 .button {
+	display: inline-block;
+	text-decoration: none;
 	padding: 8px 12px;
 	font-weight: 500;
 	font-size: 16px;
@@ -84,7 +86,37 @@ html, body {
 }
 /* INPUT */
 
+/* AUTH-CONTAINER */
+.auth-main {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.auth-container {
+	max-width: 350px;
+	width: 100%;
+}
+
+.auth-container h1 {
+	margin-bottom: 20px;
+}
+/* AUTH-CONTAINER */
+
 /* FORM */
+.form {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.auth-form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
 .form-col {
 	display: flex;
 	flex-direction: column;

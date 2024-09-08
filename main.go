@@ -91,31 +91,31 @@ func main() {
 	// Auth routes
 	mux.HandleFunc("/login", loginHandler(db, store))
 	mux.HandleFunc("/signup", signupHandler(db, store))
+	mux.HandleFunc("/logout", logoutHandler(db, store))
 
 	// Project routes
-	mux.HandleFunc("/projects", projectsHandler(db, localizer))
-	mux.HandleFunc("/projects/{slug}", projectViewHandler(db, localizer))
-	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db))
-	mux.HandleFunc("/projects/{slug}/new-widget", projectNewWidgetHandler(db))
-	mux.HandleFunc("/projects/{slug}/connect", projectConnectHandler(db, &connections))
-	mux.HandleFunc("/projects/{slug}/disconnect", projectDisconnectHandler(db, &connections))
-	mux.HandleFunc("/projects/{slug}/connection", projectConnectionHandler(db, &connections))
-	mux.HandleFunc("/projects/{slug}/data", projectDataHandler(db, &connections))
-	mux.HandleFunc("/projects/{slug}/submit-value", projectSubmitValueHandler(db, &connections))
-	mux.HandleFunc("/projects/{slug}/delete-widget", projectDeleteWidgetHandler(db))
-	mux.HandleFunc("/projects/{slug}/edit-widget", projectEditWidgetHandler(db))
-	mux.HandleFunc("/projects/{slug}/edit-section", projectEditSectionHandler(db))
-	mux.HandleFunc("/projects/{slug}/delete-section", projectDeleteSectionHandler(db))
-	mux.HandleFunc("/projects/{slug}/settings", projectSettingsViewHandler(db))
+	mux.HandleFunc("/projects", projectsHandler(db, localizer, store))
+	mux.HandleFunc("/projects/{slug}", projectViewHandler(db, localizer, store))
+	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/new-widget", projectNewWidgetHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/connect", projectConnectHandler(db, &connections, store))
+	mux.HandleFunc("/projects/{slug}/disconnect", projectDisconnectHandler(db, &connections, store))
+	mux.HandleFunc("/projects/{slug}/connection", projectConnectionHandler(db, &connections, store))
+	mux.HandleFunc("/projects/{slug}/data", projectDataHandler(db, &connections, store))
+	mux.HandleFunc("/projects/{slug}/submit-value", projectSubmitValueHandler(db, &connections, store))
+	mux.HandleFunc("/projects/{slug}/delete-widget", projectDeleteWidgetHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/edit-widget", projectEditWidgetHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/edit-section", projectEditSectionHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/delete-section", projectDeleteSectionHandler(db, store))
+	mux.HandleFunc("/projects/{slug}/settings", projectSettingsViewHandler(db, store))
+
+	// Account routes
+	mux.HandleFunc("/account", accountHandler(db, store))
 
 	// Admin routes
-	mux.HandleFunc("/admin/projects", adminProjectsHandler(db))
-	mux.HandleFunc("/admin/projects/new", adminNewProjectHandler(db))
-
-	mux.HandleFunc("/admin/products", adminProductsHandler(db))
-	mux.HandleFunc("/admin/products/{id}", adminEditProductHandler(db))
-	mux.HandleFunc("/admin/delete-product", adminDeleteProductHandler(db))
-	mux.HandleFunc("/admin/new-product", adminNewProductHandler(db))
+	mux.HandleFunc("/admin/projects", adminProjectsHandler(db, store))
+	mux.HandleFunc("/admin/projects/new", adminNewProjectHandler(db, store))
+	mux.HandleFunc("/admin/projects/delete", adminDeleteProjectHandler(db, store))
 
 	// General routes ?
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))

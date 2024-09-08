@@ -4,6 +4,7 @@
 
 	<div class="dashboard-header-left">
 		<div class="dashboard-header-title">Projects</div>
+		<a href="/admin/projects/new">+ New project</a>
 	</div>
 
 	<div class="dashboard-header-right">
@@ -33,7 +34,7 @@
 					<td>{{.ID}}</td>
 					<td>{{.Name}}</td>
 					<td class="dashboard-table-actions">
-						<form method="POST" action="/delete-project">
+						<form method="POST" action="/admin/projects/delete">
 							<input type="hidden" name="id" value="{{.ID}}" />
 							<button>
 							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width: 24px; height: 24px;">
