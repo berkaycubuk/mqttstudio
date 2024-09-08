@@ -115,7 +115,7 @@
 
 			{{range .Widgets}}
 			<!-- WIDGET -->
-			<div class="project-widget" data-widget-id="{{.ID}}">
+			<div class="project-widget" data-widget-id="{{.ID}}" data-widget-widget="{{.Widget}}">
 				<div data-widget-edit-mode class="project-widget-edit-toolbar" style="display: none;">
 
 					<button class="button button--small button--secondary" data-edit-widget-button data-edit-widget-id="{{.ID}}">{{$lang.edit}}</button>
@@ -164,6 +164,15 @@
 								<label>Color</label>
 								<input class="input" type="color" name="color" value="{{.ConfigParsed.Color}}" />
 							</div>
+							{{else if eq .Widget "TIMESERIES-LINE-CHART"}}
+							<div class="form-col">
+								<label>Topic</label>
+								<input class="input" type="text" name="topic" placeholder="Topic" value="{{.ConfigParsed.Topic}}" />
+							</div>
+							<div class="form-col">
+								<label>Label</label>
+								<input class="input" type="text" name="label" placeholder="Label" value="{{.ConfigParsed.Label}}" />
+							</div>
 							{{end}}
 							<button class="button button--primary">Save</button>
 						</form>
@@ -172,10 +181,13 @@
 				</div>
 
 				<div class="project-widget-title">{{.Title}}</div>
+
 				{{if eq .Widget "TEXT"}}
 				<div data-widget-value>-- {{$lang.no_data}} --</div>
 				{{else if eq .Widget "INDICATOR"}}
 				<div data-widget-value>-- {{$lang.no_data}} --</div>
+				{{else if eq .Widget "TIMESERIES-LINE-CHART"}}
+				<canvas data-widget-timeseries-line-chart data-widget-chart-label="{{.ConfigParsed.Label}}" id="widget-chart-{{.ID}}"></canvas>
 				{{else if eq .Widget "BUTTON"}}
 				<form method="POST" action="/projects/{{$slug}}/submit-value">
 					<input style="display: none;" type="hidden" value="{{.ID}}" name="id" />
@@ -206,6 +218,7 @@
 						<button class="button button--secondary" onclick="selectNewWidget('text', '{{.ID}}')">Text</button>
 						<button class="button button--secondary" onclick="selectNewWidget('button', '{{.ID}}')">Button</button>
 						<button class="button button--secondary" onclick="selectNewWidget('indicator', '{{.ID}}')">Indicator</button>
+						<button class="button button--secondary" onclick="selectNewWidget('timeseries-line-chart', '{{.ID}}')">Timeseries Line Chart</button>
 					</div>
 
 					<form data-new-widget-text method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
@@ -262,6 +275,24 @@
 						<button class="button button--primary">Add</button>
 					</form>
 
+					<form data-new-widget-timeseries-line-chart method="POST" action="/projects/{{$slug}}/new-widget" style="display: none;">
+						<input style="display: none;" type="hidden" name="id" value="{{.ID}}" />
+						<input style="display: none;" type="hidden" name="widget" value="TIMESERIES-LINE-CHART" />
+						<div class="form-col">
+							<label>Title</label>
+							<input class="input" type="text" name="title" placeholder="Title" />
+						</div>
+						<div class="form-col">
+							<label>Label</label>
+							<input class="input" type="text" name="label" placeholder="Label" />
+						</div>
+						<div class="form-col">
+							<label>Topic</label>
+							<input class="input" type="text" name="topic" placeholder="Topic" />
+						</div>
+						<button class="button button--primary">Add</button>
+					</form>
+
 				</dialog>
 				<!-- NEW WIDGET DIALOG -->
 			</div>
@@ -291,7 +322,33 @@
 {{end}}
 
 {{define "scripts"}}
+<script src="/static/chart.umd.js"></script>
+
 <script>
+	let charts = {};
+
+	// Timeseries line charts
+	const timeseriesLineCharts = document.querySelectorAll('[data-widget-timeseries-line-chart]');
+	for (let i = 0; i < timeseriesLineCharts.length; i++) {
+		const label = timeseriesLineCharts[i].dataset.widgetChartLabel;
+		const chart = new Chart(timeseriesLineCharts[i].id, {
+			type: "line",
+			data: {
+				labels: [],
+				datasets: [
+					{
+						label: label,
+						data: [],
+					}
+				],
+			},
+			options: {},
+		});
+
+		const widgetId = timeseriesLineCharts[i].id.replace('widget-chart-', '');
+		charts[widgetId] = chart;
+	}
+
 	let dashboardMode = "DISPLAY";
 
 	// Edit buttons
@@ -400,6 +457,20 @@
 			for (let i = 0; i < data.length; i++) {
 				let widget = document.querySelector('[data-widget-id="' + data[i].ID + '"]');
 				if (!widget) continue;
+
+				if (widget.dataset.widgetWidget == "TIMESERIES-LINE-CHART") {
+					const chart = charts[data[i].ID];
+					chart.data.labels = data[i].Data.Timeseries;
+					chart.data.datasets.forEach((dataset) => {
+						if (data[i].Data.Datasets[dataset.label] == null) {
+							dataset.data = [];
+						} else {
+							dataset.data = data[i].Data.Datasets[dataset.label];
+						}
+					});
+					chart.update()
+				}
+
 				let value = widget.querySelector('[data-widget-value]');
 				if (!value) continue;
 				if (data[i].Data == undefined || data[i].Data == null) {

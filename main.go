@@ -13,7 +13,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
+	"github.com/gorilla/sessions"
 )
+
+// TODO: Get key from the env
+var store = sessions.NewCookieStore([]byte("secret-key"))
 
 func homeHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -71,6 +75,7 @@ func main() {
 		createUsersTable(db)
 		createLogsTable(db)
 		createDataLogsTable(db)
+		createTeamsTable(db)
 	}
 
 	var connections []*Connection
@@ -84,11 +89,10 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Auth routes
-	mux.HandleFunc("/login", loginHandler(db))
-	mux.HandleFunc("/signup", signupHandler(db))
+	mux.HandleFunc("/login", loginHandler(db, store))
+	mux.HandleFunc("/signup", signupHandler(db, store))
 
-	mux.HandleFunc("/add-to-cart", addToCartHandler(db))
-	mux.HandleFunc("/cart", cartHandler(db))
+	// Project routes
 	mux.HandleFunc("/projects", projectsHandler(db, localizer))
 	mux.HandleFunc("/projects/{slug}", projectViewHandler(db, localizer))
 	mux.HandleFunc("/projects/{slug}/new-section", projectNewSectionHandler(db))

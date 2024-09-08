@@ -13,6 +13,7 @@ import (
 
 type Project struct {
 	ID int
+	TeamID int
 	Name string
 	Slug string
 	BrokerClientID string
@@ -59,14 +60,31 @@ type ButtonWidgetConfig struct {
 	Message string
 }
 
+type TimeseriesLineChartWidgetConfig struct {
+	Topic string
+	Label string
+	MaxLength int
+}
+
+type TimeseriesLineChartCreate struct {
+	Labels []string
+	Topics []string
+}
+
 type WidgetData struct {
 	ID int
 	Data any
 }
 
+type TimeseriesLineChartWidgetData struct {
+	Timeseries []string
+	Datasets map[string][]any
+}
+
 func createProjectsTable(db *sql.DB) {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS projects(
 		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+		team_id INTEGER NOT NULL,
 		name TEXT NOT NULL,
 		slug TEXT NOT NULL,
 		broker_client_id TEXT NOT NULL,
@@ -275,13 +293,15 @@ func adminNewProjectHandler(db *sql.DB) http.HandlerFunc {
 			brokerPort := req.FormValue("broker-port")
 			brokerProtocol := req.FormValue("broker-protocol")
 
-			stmt, err := db.Prepare("INSERT INTO projects(name,slug,broker_client_id,broker_address,broker_port,broker_protocol) VALUES(?,?,?,?,?,?)")
+			// TODO: Get team id of the user
+
+			stmt, err := db.Prepare("INSERT INTO projects(team_id,name,slug,broker_client_id,broker_address,broker_port,broker_protocol) VALUES(?,?,?,?,?,?,?)")
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
 
-			res, err := stmt.Exec(name, slug, brokerClientID, brokerAddress, brokerPort, brokerProtocol)
+			res, err := stmt.Exec(1, name, slug, brokerClientID, brokerAddress, brokerPort, brokerProtocol)
 			if err != nil {
 				log.Fatal(err)
 				return
@@ -422,6 +442,14 @@ func projectNewWidgetHandler(db *sql.DB) http.HandlerFunc {
 				OnCondition: onCondition,
 				Color: "blue",
 			})
+		} else if widget == "TIMESERIES-LINE-CHART" {
+			label := r.FormValue("label")
+
+			config, err = json.Marshal(TimeseriesLineChartWidgetConfig{
+				Topic: topic,
+				Label: label,
+				MaxLength: 8, // TODO: make this changable
+			})
 		}
 
 		res, err := stmt.Exec(id, widget, title, config)
@@ -528,6 +556,15 @@ func projectConnectHandler(db *sql.DB, connections *[]*Connection) http.HandlerF
 						}
 
 						topics = append(topics, indicatorWidgetConfig.Topic)
+					} else if projectWidget.Widget == "TIMESERIES-LINE-CHART" {
+						var config TimeseriesLineChartWidgetConfig
+						err = json.Unmarshal(projectWidget.Config, &config)
+						if err != nil {
+							log.Fatal(err)
+							return
+						}
+
+						topics = append(topics, config.Topic)
 					}
 
 					projectWidgets = append(projectWidgets, projectWidget)
@@ -760,6 +797,41 @@ func projectDataHandler(db *sql.DB, connections *[]*Connection) http.HandlerFunc
 					})
 
 					continue
+				} else if projectWidget.Widget == "TIMESERIES-LINE-CHART" {
+					var config TimeseriesLineChartWidgetConfig
+					err = json.Unmarshal(projectWidget.Config, &config)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+
+					widgetData := map[string][]any{}
+					timeSeries := []string{}
+					dataLogs, err := getTopicDataLogs(db, config.Topic, config.MaxLength)
+					if err != nil {
+						log.Fatal(err)
+						return
+					}
+
+					var datasets []any
+					for j := len(dataLogs) - 1; j >= 0; j-- {
+						datasets = append(datasets, string(dataLogs[j].Data))
+						if (len(timeSeries) < config.MaxLength) {
+							timeSeries = append(timeSeries, dataLogs[j].CreatedAt.Format("15:04:05"))
+						}
+					}
+
+					widgetData[config.Label] = datasets
+
+					data = append(data, WidgetData{
+						ID: projectWidget.ID,
+						Data: TimeseriesLineChartWidgetData{
+							Timeseries: timeSeries,
+							Datasets: widgetData,
+						},
+					})
+
+					continue
 				}
 
 				if topic == "" {
@@ -952,6 +1024,15 @@ func projectEditWidgetHandler(db *sql.DB) http.HandlerFunc {
 				Topic: topic,
 				OnCondition: onCondition,
 				Color: color,
+			})
+		} else if projectWidget.Widget == "TIMESERIES-LINE-CHART" {
+			topic := r.FormValue("topic")
+			label := r.FormValue("label")
+
+			config, err = json.Marshal(TimeseriesLineChartWidgetConfig{
+				Topic: topic,
+				Label: label,
+				MaxLength: 8, // TODO: Make this changable
 			})
 		}
 

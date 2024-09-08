@@ -45,3 +45,26 @@ func createDataLog(db *sql.DB, topic string, data []byte) {
 		return
 	}
 }
+
+func getTopicDataLogs(db *sql.DB, topic string, maxLength int) ([]DataLog, error) {
+	var logs []DataLog
+
+	rows, err := db.Query("SELECT * FROM data_logs where topic = ? ORDER BY id DESC LIMIT ?", topic, maxLength)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var logRow DataLog
+		err = rows.Scan(&logRow.ID, &logRow.Topic, &logRow.Data, &logRow.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		logs = append(logs, logRow)
+	}
+
+	rows.Close()
+
+	return logs, nil
+}

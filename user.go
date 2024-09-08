@@ -6,11 +6,14 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/sessions"
+	"golang.org/x/crypto/bcrypt"
 )
 
 /*
 *	TODO: Sesssion
-*/
+ */
 
 type User struct {
 	ID int
@@ -32,9 +35,16 @@ func createUsersTable(db *sql.DB) {
 	}
 }
 
-func loginHandler(db *sql.DB) http.HandlerFunc {
+func loginHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
+			session, _ := store.Get(r, "mqtt-studio-session")
+
+			if auth, ok := session.Values["authenticated"].(bool); ok || auth {
+				http.Redirect(w, r, "/projects", http.StatusFound)
+				return
+			}
+
 			tmpl := template.Must(template.ParseFiles("./views/auth-layout.html", "./views/login.html"))
 			tmpl.Execute(w, "")
 		} else if r.Method == "POST" {
@@ -47,23 +57,49 @@ func loginHandler(db *sql.DB) http.HandlerFunc {
 			password := r.FormValue("password")
 
 			var user User
-			// TODO: add password hashing!!!
-			err := db.QueryRow("SELECT id, name, email FROM users WHERE email = ? AND password = ?", email, password).Scan(&user.ID, &user.Name, &user.Email)
+			var hashedPassword string
+			err := db.QueryRow("SELECT id, name, email, password FROM users WHERE email = ?", email).Scan(&user.ID, &user.Name, &user.Email, &hashedPassword)
 			if err != nil {
 				http.NotFound(w, r)
 				return
 			}
 
-			http.Redirect(w, r, "/", http.StatusFound)
+			if !VerifyUserPassword(password, hashedPassword) {
+				http.NotFound(w, r)
+				return
+			}
+
+			session, _ := store.Get(r, "mqtt-studio-session")
+			session.Values["authenticated"] = true
+			session.Values["user_id"] = user.ID
+			session.Options = &sessions.Options{
+				Path: "/",
+				MaxAge: 3600, // 1 hour
+				HttpOnly: true,
+			}
+			err = session.Save(r, w)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			http.Redirect(w, r, "/projects", http.StatusFound)
 		} else {
 			fmt.Fprint(w, "Only GET and POST methods are supported.")
 		}
 	}
 }
 
-func signupHandler(db *sql.DB) http.HandlerFunc {
+func signupHandler(db *sql.DB, store *sessions.CookieStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
+			session, _ := store.Get(r, "mqtt-studio-session")
+
+			if auth, ok := session.Values["authenticated"].(bool); ok || auth {
+				http.Redirect(w, r, "/projects", http.StatusFound)
+				return
+			}
+
 			tmpl := template.Must(template.ParseFiles("./views/auth-layout.html", "./views/signup.html"))
 			tmpl.Execute(w, "")
 		} else if r.Method == "POST" {
@@ -85,28 +121,66 @@ func signupHandler(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			// TODO: add password hashing!!!
+			hashedPassword, err := HashUserPassword(password)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
 			stmt, err := db.Prepare("INSERT INTO users(name,email,password) VALUES(?,?,?)")
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
 
-			res, err := stmt.Exec(name, email, password)
+			res, err := stmt.Exec(name, email, hashedPassword)
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
 
-			_, err = res.LastInsertId()
+			userID, err := res.LastInsertId()
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
 
-			http.Redirect(w, r, "/", http.StatusFound)
+			// Create team
+			teamID, err := CreateTeam(db, name + "'s Team")
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			_, err = CreateTeamUser(db, teamID, int(userID), "OWNER")
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			session, _ := store.Get(r, "mqtt-studio-session")
+			session.Values["authenticated"] = true
+			session.Values["user_id"] = int(userID)
+			session.Options = &sessions.Options{
+				Path: "/",
+				MaxAge: 3600, // 1 hour
+				HttpOnly: true,
+			}
+			err = session.Save(r, w)
+
+			http.Redirect(w, r, "/projects", http.StatusFound)
 		} else {
 			fmt.Fprint(w, "Only GET and POST methods are supported.")
 		}
 	}
+}
+
+func HashUserPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func VerifyUserPassword(password string, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
