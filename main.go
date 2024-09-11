@@ -56,7 +56,7 @@ func main() {
 
 	// Auth routes
 	mux.HandleFunc("/login", loginHandler(db, store))
-	mux.HandleFunc("/signup", signupHandler(db, store))
+	//mux.HandleFunc("/signup", signupHandler(db, store))
 	mux.HandleFunc("/logout", logoutHandler(db, store))
 
 	// Project routes
