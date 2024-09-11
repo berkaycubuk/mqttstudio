@@ -17,4 +17,41 @@
 	</div>
 </header>
 
+<main style="padding: 10px;">
+
+	<form method="POST" class="form" style="max-width: 800px; width: 100%;">
+
+		<div class="form-col">
+			<label>Name</label>
+			<input class="input" type="text" name="name" value="{{.Name}}" />
+		</div>
+
+		<div class="form-col">
+			<label>Broker Client ID</label>
+			<input class="input" type="text" name="broker-client-id" value="{{.BrokerClientID}}" />
+		</div>
+
+		<div class="form-col">
+			<label>Broker Address</label>
+			<input class="input" type="text" name="broker-address" value="{{.BrokerAddress}}" />
+		</div>
+
+		<div class="form-col">
+			<label>Broker Port</label>
+			<input class="input" type="text" name="broker-port" value="{{.BrokerPort}}" />
+		</div>
+
+		<div class="form-col">
+			<label>Broker Protocol</label>
+			<input class="input" type="text" name="broker-protocol" value="{{.BrokerProtocol}}" />
+		</div>
+
+		<div style="grid-column: span 2 / span 2;">
+			<button class="button button--primary">Save</button>
+		</div>
+
+	</form>
+
+</main>
+
 {{end}}

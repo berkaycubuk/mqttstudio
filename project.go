@@ -1304,13 +1304,44 @@ func projectSettingsViewHandler(db *sql.DB, store *sessions.CookieStore) http.Ha
 		slugParameter := r.PathValue("slug")
 
 		var project Project
-		err := db.QueryRow("SELECT id, name, slug, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
+		err := db.QueryRow("SELECT id, name, slug, broker_client_id, broker_address, broker_port, broker_protocol FROM projects WHERE slug = ?", slugParameter).Scan(&project.ID, &project.Name, &project.Slug, &project.BrokerClientID, &project.BrokerAddress, &project.BrokerPort, &project.BrokerProtocol)
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
 
-		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/project-settings.html"))
-		tmpl.Execute(w, project)
+		if r.Method == "GET" {
+			tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/project-settings.html"))
+			tmpl.Execute(w, project)
+		} else if r.Method == "POST" {
+			if err := r.ParseForm(); err != nil {
+				fmt.Fprintf(w, "ERROR: %v", err)
+				return
+			}
+
+			name := r.FormValue("name")
+			brokerClientID := r.FormValue("broker-client-id")
+			brokerAddress := r.FormValue("broker-address")
+			brokerPort := r.FormValue("broker-port")
+			brokerProtocol := r.FormValue("broker-protocol")
+
+			// TODO: validate form values
+
+			stmt, err := db.Prepare("UPDATE projects set name = ?, broker_client_id = ?, broker_address = ?, broker_port = ?, broker_protocol = ? where id = ?")
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			_, err = stmt.Exec(name, brokerClientID, brokerAddress, brokerPort, brokerProtocol, project.ID)
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
+
+			http.Redirect(w, r, "/projects/" + project.Slug + "/settings", http.StatusFound)
+		} else {
+			fmt.Fprintf(w, "Only GET and POST methods are supported.")
+		}
 	}
 }

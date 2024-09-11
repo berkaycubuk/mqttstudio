@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -18,38 +16,6 @@ import (
 
 // TODO: Get key from the env
 var store = sessions.NewCookieStore([]byte("secret-key"))
-
-func homeHandler(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/" {
-			http.NotFound(w, req)
-			return
-		}
-
-		rows, err := db.Query("SELECT * FROM projects")
-		if err != nil {
-			fmt.Fprintf(w, err.Error())
-		}
-
-		var projects []Project
-
-		for rows.Next() {
-			var project Project
-			err = rows.Scan(&project.ID, &project.Name, &project.Slug)
-			if err != nil {
-				fmt.Fprintf(w, err.Error())
-				continue
-			}
-
-			projects = append(projects, project)
-		}
-
-		rows.Close()
-
-		tmpl := template.Must(template.ParseFiles("./views/layout.html", "./views/index.html"))
-		tmpl.Execute(w, projects)
-	}
-}
 
 func main() {
 	isDbNew := false
@@ -119,7 +85,6 @@ func main() {
 
 	// General routes ?
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./public"))))
-	mux.HandleFunc("/", homeHandler(db))
 
 	log.Println("Server started on port 8090")
 	http.ListenAndServe(":8090", mux)
